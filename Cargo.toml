@@ -11,7 +11,7 @@ authors = ["Enrico Risa <enrico.risa@gmail.com>"]
 
 
 [workspace.dependencies]
-tokio = {  version= "1.43.0", features=["full"] }
+tokio = {  version= "1.50.0", features=["full"] }
 sqlx = {version = "0.8.6", features = ["runtime-tokio-rustls", "uuid", "chrono"]}
 axum = { version = "0.8.8", features = ["macros"]}
 axum-extra = { version = "0.12.5", features = ["typed-header"] }
