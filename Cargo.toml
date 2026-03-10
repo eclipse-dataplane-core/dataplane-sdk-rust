@@ -30,7 +30,7 @@ mockall = "0.14.0"
 uuid = { version = "1.22.0", features = ["v4", "serde"]}
 testcontainers = "0.26"
 testcontainers-modules =  "0.14"
-anyhow = "1.0.95"
+anyhow = "1.0.102"
 
 [workspace.lints.clippy]
 unwrap_used = "deny"
