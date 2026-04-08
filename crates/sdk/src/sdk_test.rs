@@ -15,7 +15,7 @@ use crate::core::{
     handler::MockDataFlowHandler,
     model::{
         data_address::DataAddress,
-        data_flow::{DataFlow, DataFlowState},
+        data_flow::{DataFlow, DataFlowState, DataFlowType},
         messages::{DataFlowPrepareMessage, DataFlowStartMessage},
     },
 };
@@ -105,7 +105,7 @@ mod prepare {
 
         repo.expect_create().returning(|_, _| {
             Box::pin(future::ready(Err(DbError::AlreadyExists(
-                "Data flow already exists".to_string().into(),
+                "Data flow already exists".to_string(),
             ))))
         });
 
@@ -280,7 +280,7 @@ mod start {
 
         repo.expect_create().returning(|_, _| {
             Box::pin(future::ready(Err(DbError::AlreadyExists(
-                "Data flow already exists".to_string().into(),
+                "Data flow already exists".to_string(),
             ))))
         });
 
@@ -528,7 +528,12 @@ fn start_message() -> DataFlowStartMessage {
         .process_id("process-id")
         .participant_id("counter-party")
         .dataset_id("dataset")
-        .data_address(DataAddress::builder().endpoint_type("Type").build())
+        .data_address(
+            DataAddress::builder()
+                .endpoint_type("Type")
+                .endpoint("endpoint")
+                .build(),
+        )
         .agreement_id("agreement")
         .callback_address("callback")
         .transfer_type("transfer-type")
@@ -558,7 +563,12 @@ fn flow() -> DataFlow {
         .state(DataFlowState::Started)
         .participant_context_id("participant-1")
         .counter_party_id("counter-party")
-        .data_address(DataAddress::builder().endpoint_type("Type").build())
+        .data_address(
+            DataAddress::builder()
+                .endpoint_type("Type")
+                .endpoint("endpoint")
+                .build(),
+        )
         .dataset_id("dataset")
         .agreement_id("agreement")
         .callback_address("callback")
@@ -566,6 +576,7 @@ fn flow() -> DataFlow {
         .dataspace_context("dataspace-context")
         .labels(vec![])
         .participant_id("participant")
+        .kind(DataFlowType::Provider)
         .build()
 }
 

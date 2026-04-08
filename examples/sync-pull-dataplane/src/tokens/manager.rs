@@ -23,6 +23,7 @@ impl<T: TransactionalContext> TokenManager<T> {
         let data_address = DataAddress::builder()
             .endpoint_type("HTTP")
             .endpoint_properties(self.endpoint_properties(token_id)?)
+            .endpoint(&self.url)
             .build();
 
         Ok((token_id, self.url.clone(), data_address))

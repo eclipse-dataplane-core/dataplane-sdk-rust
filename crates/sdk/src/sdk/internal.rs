@@ -19,7 +19,7 @@ use crate::{
         error::{DbError, HandlerError},
         handler::DataFlowHandler,
         model::{
-            data_flow::{DataFlow, DataFlowState},
+            data_flow::{DataFlow, DataFlowState, DataFlowType},
             messages::{
                 DataFlowPrepareMessage, DataFlowResponseMessage, DataFlowStartMessage,
                 DataFlowStartedNotificationMessage,
@@ -61,6 +61,7 @@ where
             .callback_address(req.callback_address)
             .labels(req.labels)
             .transfer_type(req.transfer_type)
+            .kind(DataFlowType::Provider)
             .build();
 
         if self.handler.can_handle(&flow).await? {
@@ -95,6 +96,7 @@ where
             .callback_address(req.callback_address)
             .labels(req.labels)
             .transfer_type(req.transfer_type)
+            .kind(DataFlowType::Consumer)
             .build();
 
         if self.handler.can_handle(&flow).await? {

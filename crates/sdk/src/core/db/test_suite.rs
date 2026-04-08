@@ -17,7 +17,7 @@ use crate::core::{
     error::DbError,
     model::{
         data_address::DataAddress,
-        data_flow::{DataFlow, DataFlowState},
+        data_flow::{DataFlow, DataFlowState, DataFlowType},
     },
 };
 
@@ -26,7 +26,7 @@ use super::{data_flow::DataFlowRepo, tx::TransactionalContext};
 pub trait Tester<T, Tx: TransactionalContext> {
     fn create() -> impl Future<Output = Self>;
     fn store(&self) -> &T;
-    fn begin<'a>(&'a self) -> impl Future<Output = Tx::Transaction>;
+    fn begin(&self) -> impl Future<Output = Tx::Transaction>;
 }
 
 pub fn create_data_flow(id: &str) -> DataFlow {
@@ -34,8 +34,9 @@ pub fn create_data_flow(id: &str) -> DataFlow {
         .id(id.to_string())
         .data_address(
             DataAddress::builder()
-                .endpoint_type("type".to_string())
+                .endpoint_type("type")
                 .endpoint_properties(vec![])
+                .endpoint("endpoint")
                 .build(),
         )
         .participant_context_id("participant_id")
@@ -53,10 +54,11 @@ pub fn create_data_flow(id: &str) -> DataFlow {
         .participant_id("participant_id")
         .callback_address("callback_address")
         .transfer_type("transfer_type")
+        .kind(DataFlowType::Provider)
         .build()
 }
 
-pub async fn create<T: DataFlowRepo, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+pub async fn create<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
 where
     T: DataFlowRepo<Transaction = Tx::Transaction>,
 {
@@ -72,7 +74,7 @@ where
     assert_eq!(saved, transfer);
 }
 
-pub async fn create_duplicate<T: DataFlowRepo, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+pub async fn create_duplicate<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
 where
     T: DataFlowRepo<Transaction = Tx::Transaction>,
 {
@@ -88,7 +90,7 @@ where
     assert!(matches!(result, Err(DbError::AlreadyExists(..))));
 }
 
-pub async fn create_rollback<T: DataFlowRepo, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+pub async fn create_rollback<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
 where
     T: DataFlowRepo<Transaction = Tx::Transaction>,
 {
@@ -111,7 +113,7 @@ where
     assert!(result.is_none());
 }
 
-pub async fn delete<T: DataFlowRepo, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+pub async fn delete<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
 where
     T: DataFlowRepo<Transaction = Tx::Transaction>,
 {
@@ -133,7 +135,7 @@ where
     assert!(result.is_some());
 }
 
-pub async fn delete_not_found<T: DataFlowRepo, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+pub async fn delete_not_found<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
 where
     T: DataFlowRepo<Transaction = Tx::Transaction>,
 {
@@ -147,7 +149,7 @@ where
     assert!(matches!(result, Err(DbError::NotFound(..))));
 }
 
-pub async fn update<T: DataFlowRepo, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+pub async fn update<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
 where
     T: DataFlowRepo<Transaction = Tx::Transaction>,
 {
@@ -179,7 +181,7 @@ where
     assert_eq!(result, updated);
 }
 
-pub async fn update_not_found<T: DataFlowRepo, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+pub async fn update_not_found<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
 where
     T: DataFlowRepo<Transaction = Tx::Transaction>,
 {

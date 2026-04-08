@@ -25,6 +25,8 @@ pub struct DataFlow {
     pub counter_party_id: String,
     pub state: DataFlowState,
     pub transfer_type: String,
+    #[sqlx(rename = "type")]
+    pub kind: DataFlowType,
     pub agreement_id: String,
     pub dataset_id: String,
     pub dataspace_context: String,
@@ -57,6 +59,13 @@ pub enum DataFlowState {
     Terminated,
 }
 
+#[derive(Clone, Debug, sqlx::Type, PartialEq)]
+#[sqlx(type_name = "data_flow_type", rename_all = "snake_case")]
+pub enum DataFlowType {
+    Consumer,
+    Provider,
+}
+
 impl From<DataFlow> for dataplane_sdk::core::model::data_flow::DataFlow {
     fn from(flow: DataFlow) -> Self {
         Self::builder()
@@ -73,6 +82,7 @@ impl From<DataFlow> for dataplane_sdk::core::model::data_flow::DataFlow {
             .participant_id(flow.participant_id)
             .callback_address(flow.callback_address)
             .transfer_type(flow.transfer_type)
+            .kind(flow.kind.into())
             .build()
     }
 }
@@ -103,6 +113,24 @@ impl From<dataplane_sdk::core::model::data_flow::DataFlowState> for DataFlowStat
             dataplane_sdk::core::model::data_flow::DataFlowState::Prepared => Self::Prepared,
             dataplane_sdk::core::model::data_flow::DataFlowState::Starting => Self::Starting,
             dataplane_sdk::core::model::data_flow::DataFlowState::Completed => Self::Completed,
+        }
+    }
+}
+
+impl From<DataFlowType> for dataplane_sdk::core::model::data_flow::DataFlowType {
+    fn from(kind: DataFlowType) -> Self {
+        match kind {
+            DataFlowType::Consumer => Self::Consumer,
+            DataFlowType::Provider => Self::Provider,
+        }
+    }
+}
+
+impl From<dataplane_sdk::core::model::data_flow::DataFlowType> for DataFlowType {
+    fn from(kind: dataplane_sdk::core::model::data_flow::DataFlowType) -> Self {
+        match kind {
+            dataplane_sdk::core::model::data_flow::DataFlowType::Consumer => Self::Consumer,
+            dataplane_sdk::core::model::data_flow::DataFlowType::Provider => Self::Provider,
         }
     }
 }

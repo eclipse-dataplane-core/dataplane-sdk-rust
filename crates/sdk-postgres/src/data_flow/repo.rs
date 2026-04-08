@@ -19,8 +19,8 @@ use dataplane_sdk::core::{
 };
 
 use crate::{
-    PgTransaction, data_flow::model::DataFlow as DbDataFlow,
-    data_flow::model::DataFlowState as DbDataFlowState,
+    PgTransaction, data_flow::model::DataFlow as DbDataFlow, data_flow::model::DataFlowState,
+    data_flow::model::DataFlowType,
 };
 
 #[derive(Default)]
@@ -33,8 +33,8 @@ impl DataFlowRepo for PgDataFlowRepo {
     async fn create(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> DbResult<()> {
         let result = sqlx::query(
             r#"
-            INSERT INTO data_flows (id, participant_id, dataspace_context, participant_context_id, counter_party_id, dataset_id, agreement_id, state, transfer_type, data_address, callback_address, labels, metadata, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            INSERT INTO data_flows (id, participant_id, dataspace_context, participant_context_id, counter_party_id, dataset_id, agreement_id, state, transfer_type, type, data_address, callback_address, labels, metadata, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             "#,
         )
         .bind(&flow.id)
@@ -44,8 +44,9 @@ impl DataFlowRepo for PgDataFlowRepo {
         .bind(&flow.counter_party_id)
         .bind(&flow.dataset_id)
         .bind(&flow.agreement_id)
-        .bind(DbDataFlowState::from(flow.state.clone()))
+        .bind(DataFlowState::from(flow.state.clone()))
         .bind(&flow.transfer_type)
+        .bind(DataFlowType::from(flow.kind.clone()))
         .bind(flow.data_address.clone().map(Json))
         .bind(&flow.callback_address)
         .bind(Json(flow.labels.clone()))
@@ -110,7 +111,7 @@ impl DataFlowRepo for PgDataFlowRepo {
             WHERE id = $2
             "#,
         )
-        .bind(DbDataFlowState::from(flow.state.clone()))
+        .bind(DataFlowState::from(flow.state.clone()))
         .bind(&flow.id)
         .execute(&mut *tx.0)
         .await

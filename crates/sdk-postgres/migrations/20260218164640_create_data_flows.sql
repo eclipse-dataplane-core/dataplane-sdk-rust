@@ -1,4 +1,5 @@
 CREATE TYPE data_flow_state AS ENUM ('started','suspended','terminated','completed', 'initiating', 'initiated', 'preparing');
+CREATE TYPE data_flow_type AS ENUM ('consumer','provider');
 
 
 CREATE TABLE IF NOT EXISTS data_flows (
@@ -12,6 +13,7 @@ CREATE TABLE IF NOT EXISTS data_flows (
     counter_party_id TEXT NOT NULL,
     callback_address TEXT NOT NULL,
     state data_flow_state NOT NULL,
+    type data_flow_type NOT NULL,
     data_address JSONB ,
     suspension_reason TEXT,
     termination_reason TEXT,

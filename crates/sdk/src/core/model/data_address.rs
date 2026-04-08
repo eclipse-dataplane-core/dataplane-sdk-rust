@@ -20,6 +20,7 @@ pub struct DataAddress {
     #[builder(default = "DataAddress".to_string())]
     #[serde(rename = "@type")]
     pub kind: String,
+    pub endpoint: String,
     pub endpoint_type: String,
     #[builder(default)]
     pub endpoint_properties: Vec<EndpointProperty>,

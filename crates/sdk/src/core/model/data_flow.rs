@@ -26,6 +26,7 @@ pub struct DataFlow {
     #[builder(default = DataFlowState::Initiating)]
     pub state: DataFlowState,
     pub transfer_type: String,
+    pub kind: DataFlowType,
     pub agreement_id: String,
     pub dataset_id: String,
     pub dataspace_context: String,
@@ -45,6 +46,13 @@ pub struct DataFlow {
     pub created_at: chrono::DateTime<chrono::Utc>,
     #[builder(default)]
     pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DataFlowType {
+    Consumer,
+    Provider,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

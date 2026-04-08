@@ -185,7 +185,12 @@ mod start {
             .dataset_id("dataset_id")
             .participant_id("counter_party_id")
             .process_id("process_id")
-            .data_address(DataAddress::builder().endpoint_type("type").build())
+            .data_address(
+                DataAddress::builder()
+                    .endpoint_type("type")
+                    .endpoint("endpoint")
+                    .build(),
+            )
             .agreement_id("agreement_id")
             .transfer_type("transfer_type")
             .dataspace_context("dataspace_context")
@@ -224,7 +229,7 @@ mod terminate {
         http::{Request, header::CONTENT_TYPE},
     };
     use dataplane_sdk::core::model::{
-        data_flow::{DataFlow, DataFlowState},
+        data_flow::{DataFlow, DataFlowState, DataFlowType},
         messages::DataFlowTerminateMessage,
         participant::ParticipantContext,
     };
@@ -255,6 +260,7 @@ mod terminate {
                     .participant_id("participant_id")
                     .callback_address("callback_address")
                     .transfer_type("transfer_type")
+                    .kind(DataFlowType::Provider)
                     .build(),
             ))
         });
@@ -304,7 +310,7 @@ mod suspend {
         http::{Request, header::CONTENT_TYPE},
     };
     use dataplane_sdk::core::model::{
-        data_flow::{DataFlow, DataFlowState},
+        data_flow::{DataFlow, DataFlowState, DataFlowType},
         messages::DataFlowTerminateMessage,
         participant::ParticipantContext,
     };
@@ -335,6 +341,7 @@ mod suspend {
                     .participant_id("participant_id")
                     .callback_address("callback_address")
                     .transfer_type("transfer_type")
+                    .kind(DataFlowType::Provider)
                     .build(),
             ))
         });
