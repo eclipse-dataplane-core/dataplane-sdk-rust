@@ -11,9 +11,11 @@
 //
 
 use async_trait::async_trait;
-use axum::{Router, routing::post};
+use axum::Router;
 use dataplane_sdk::core::error::HandlerResult;
 use dataplane_sdk::core::model::messages::DataFlowResponseMessage;
+use dataplane_sdk::core::model::participant::ParticipantContext;
+use dataplane_sdk::sdk;
 use dataplane_sdk::{
     core::{
         db::{
@@ -28,7 +30,7 @@ use dataplane_sdk::{
 };
 use mockall::mock;
 
-use crate::api::{start_flow, suspend_flow, terminate_flow};
+use crate::router::{participants_router, router};
 
 mock! {
     Tx{}
@@ -117,11 +119,37 @@ mock! {
     }
 }
 
-fn app() -> Router<DataPlaneSdk<MockTxContext>> {
-    Router::new()
-        .route("/api/v1/dataflows/start", post(start_flow))
-        .route("/api/v1/dataflows/{id}/terminate", post(terminate_flow))
-        .route("/api/v1/dataflows/{id}/suspend", post(suspend_flow))
+struct TestCtx {
+    base_url: String,
+    app: Router<DataPlaneSdk<MockTxContext>>,
+    participant_context: ParticipantContext,
+}
+
+impl TestCtx {
+    pub fn app(&self, sdk: DataPlaneSdk<MockTxContext>) -> Router {
+        let app = self.app.clone().with_state(sdk);
+        app.layer(axum::Extension(self.participant_context.clone()))
+    }
+}
+
+fn single_ctx() -> TestCtx {
+    TestCtx {
+        base_url: "/api/v1".to_string(),
+        app: router(),
+        participant_context: ParticipantContext::builder()
+            .id("example-participant")
+            .build(),
+    }
+}
+
+fn multi_participant_ctx() -> TestCtx {
+    TestCtx {
+        base_url: "/api/v1/example-participant".to_string(),
+        app: participants_router(),
+        participant_context: ParticipantContext::builder()
+            .id("example-participant")
+            .build(),
+    }
 }
 
 fn context() -> (MockTxContext, MockRepo, MockHandler) {
@@ -138,7 +166,6 @@ fn sdk(ctx: MockTxContext, repo: MockRepo, handler: MockHandler) -> DataPlaneSdk
 
 mod start {
     use axum::{
-        Extension,
         body::Body,
         http::{Request, header::CONTENT_TYPE},
     };
@@ -146,15 +173,18 @@ mod start {
         data_address::DataAddress,
         data_flow::DataFlowState,
         messages::{DataFlowResponseMessage, DataFlowStartMessage},
-        participant::ParticipantContext,
     };
     use http_body_util::BodyExt;
+    use rstest::rstest;
     use tower::ServiceExt;
 
-    use crate::api_tests::{MockTx, app, context, sdk};
+    use crate::api_tests::{MockTx, TestCtx, context, multi_participant_ctx, sdk, single_ctx};
 
+    #[rstest]
+    #[case(single_ctx())]
+    #[case(multi_participant_ctx())]
     #[tokio::test]
-    async fn start_flow_test() {
+    async fn start_flow_test(#[case] test_ctx: TestCtx) {
         let (mut ctx, mut repo, mut handler) = context();
 
         ctx.expect_begin().returning(|| {
@@ -173,13 +203,7 @@ mod start {
                 .build())
         });
 
-        let p_context = ParticipantContext::builder()
-            .id("example-participant")
-            .build();
-
-        let app = app()
-            .with_state(sdk(ctx, repo, handler))
-            .layer(Extension(p_context));
+        let app = test_ctx.app(sdk(ctx, repo, handler));
 
         let msg = DataFlowStartMessage::builder()
             .dataset_id("dataset_id")
@@ -206,7 +230,7 @@ mod start {
                 Request::builder()
                     .method("POST")
                     .header(CONTENT_TYPE, "application/json")
-                    .uri("/api/v1/dataflows/start")
+                    .uri(test_ctx.base_url + "/dataflows/start")
                     .body(Body::from(payload))
                     .unwrap(),
             )
@@ -224,21 +248,23 @@ mod start {
 mod terminate {
 
     use axum::{
-        Extension,
         body::Body,
         http::{Request, header::CONTENT_TYPE},
     };
     use dataplane_sdk::core::model::{
         data_flow::{DataFlow, DataFlowState, DataFlowType},
         messages::DataFlowTerminateMessage,
-        participant::ParticipantContext,
     };
+    use rstest::rstest;
     use tower::ServiceExt;
 
-    use crate::api_tests::{MockTx, app, context, sdk};
+    use crate::api_tests::{MockTx, TestCtx, context, multi_participant_ctx, sdk, single_ctx};
 
+    #[rstest]
+    #[case(single_ctx())]
+    #[case(multi_participant_ctx())]
     #[tokio::test]
-    async fn terminate_test() {
+    async fn terminate_test(#[case] test_ctx: TestCtx) {
         let (mut ctx, mut repo, mut handler) = context();
 
         ctx.expect_begin().returning(|| {
@@ -268,13 +294,7 @@ mod terminate {
 
         handler.expect_on_terminate().returning(|_, _flow| Ok(()));
 
-        let p_context = ParticipantContext::builder()
-            .id("example-participant")
-            .build();
-
-        let app = app()
-            .with_state(sdk(ctx, repo, handler))
-            .layer(Extension(p_context));
+        let app = test_ctx.app(sdk(ctx, repo, handler));
 
         let msg = DataFlowTerminateMessage::builder()
             .reason("dataset_id")
@@ -287,7 +307,10 @@ mod terminate {
                 Request::builder()
                     .method("POST")
                     .header(CONTENT_TYPE, "application/json")
-                    .uri(format!("/api/v1/dataflows/{}/terminate", "example-flow-id"))
+                    .uri(format!(
+                        "{}/dataflows/{}/terminate",
+                        test_ctx.base_url, "example-flow-id"
+                    ))
                     .body(Body::from(payload))
                     .unwrap(),
             )
@@ -305,21 +328,24 @@ mod terminate {
 mod suspend {
 
     use axum::{
-        Extension,
         body::Body,
         http::{Request, header::CONTENT_TYPE},
     };
+
     use dataplane_sdk::core::model::{
         data_flow::{DataFlow, DataFlowState, DataFlowType},
         messages::DataFlowTerminateMessage,
-        participant::ParticipantContext,
     };
+    use rstest::rstest;
     use tower::ServiceExt;
 
-    use crate::api_tests::{MockTx, app, context, sdk};
+    use crate::api_tests::{MockTx, TestCtx, context, multi_participant_ctx, sdk, single_ctx};
 
+    #[rstest]
+    #[case(single_ctx())]
+    #[case(multi_participant_ctx())]
     #[tokio::test]
-    async fn suspend_test() {
+    async fn suspend_test(#[case] test_ctx: TestCtx) {
         let (mut ctx, mut repo, mut handler) = context();
 
         ctx.expect_begin().returning(|| {
@@ -349,13 +375,7 @@ mod suspend {
 
         handler.expect_on_suspend().returning(|_, _flow| Ok(()));
 
-        let p_context = ParticipantContext::builder()
-            .id("example-participant")
-            .build();
-
-        let app = app()
-            .with_state(sdk(ctx, repo, handler))
-            .layer(Extension(p_context));
+        let app = test_ctx.app(sdk(ctx, repo, handler));
 
         let msg = DataFlowTerminateMessage::builder()
             .reason("dataset_id")
@@ -368,7 +388,10 @@ mod suspend {
                 Request::builder()
                     .method("POST")
                     .header(CONTENT_TYPE, "application/json")
-                    .uri(format!("/api/v1/dataflows/{}/suspend", "example-flow-id"))
+                    .uri(format!(
+                        "{}/dataflows/{}/suspend",
+                        test_ctx.base_url, "example-flow-id"
+                    ))
                     .body(Body::from(payload))
                     .unwrap(),
             )

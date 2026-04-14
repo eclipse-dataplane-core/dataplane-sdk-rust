@@ -28,6 +28,7 @@ use dataplane_sdk::{
     },
     sdk::DataPlaneSdk,
 };
+use serde::Deserialize;
 
 use crate::error::SignalingResult;
 
@@ -55,41 +56,48 @@ where
     Ok(Json(response))
 }
 
+#[derive(Deserialize)]
+pub struct FlowParams {
+    #[allow(dead_code)]
+    participant_context_id: Option<String>,
+    id: String,
+}
 pub async fn started_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
-    Path(id): Path<String>,
+    Path(params): Path<FlowParams>,
     Json(msg): Json<DataFlowStartedNotificationMessage>,
 ) -> SignalingResult<()>
 where
     C: TransactionalContext,
 {
-    sdk.started(&participant.id, &id, msg).await?;
+    sdk.started(&participant.id, &params.id, msg).await?;
     Ok(())
 }
 
 pub async fn terminate_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
-    Path(id): Path<String>,
+    Path(params): Path<FlowParams>,
     Json(msg): Json<DataFlowTerminateMessage>,
 ) -> SignalingResult<()>
 where
     C: TransactionalContext,
 {
-    sdk.terminate(&participant.id, &id, msg.reason).await?;
+    sdk.terminate(&participant.id, &params.id, msg.reason)
+        .await?;
     Ok(())
 }
 
 pub async fn suspend_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
-    Path(id): Path<String>,
+    Path(params): Path<FlowParams>,
     Json(msg): Json<DataFlowSuspendMessage>,
 ) -> SignalingResult<()>
 where
     C: TransactionalContext,
 {
-    sdk.suspend(&participant.id, &id, msg.reason).await?;
+    sdk.suspend(&participant.id, &params.id, msg.reason).await?;
     Ok(())
 }

@@ -10,6 +10,7 @@ serde_json.workspace=true
 tracing.workspace=true
 dataplane-sdk= { path="../../crates/sdk" }
 anyhow.workspace=true
+serde.workspace=true
 
 [dev-dependencies]
 mockall.workspace=true
@@ -17,6 +18,7 @@ async-trait.workspace=true
 tokio.workspace=true
 tower.workspace=true
 http-body-util.workspace=true
+rstest.workspace=true
 
 [lints]
 workspace = true

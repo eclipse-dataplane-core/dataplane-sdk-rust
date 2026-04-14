@@ -27,3 +27,31 @@ where
         .route("/api/v1/dataflows/{id}/started", post(started_flow))
         .route("/api/v1/dataflows/{id}/suspend", post(suspend_flow))
 }
+
+pub fn participants_router<C>() -> Router<DataPlaneSdk<C>>
+where
+    C: TransactionalContext + 'static,
+    C::Transaction: Send,
+{
+    Router::new()
+        .route(
+            "/api/v1/{participant_context_id}/dataflows/start",
+            post(start_flow),
+        )
+        .route(
+            "/api/v1/{participant_context_id}/dataflows/prepare",
+            post(prepare_flow),
+        )
+        .route(
+            "/api/v1/{participant_context_id}/dataflows/{id}/terminate",
+            post(terminate_flow),
+        )
+        .route(
+            "/api/v1/{participant_context_id}/dataflows/{id}/started",
+            post(started_flow),
+        )
+        .route(
+            "/api/v1/{participant_context_id}/dataflows/{id}/suspend",
+            post(suspend_flow),
+        )
+}
