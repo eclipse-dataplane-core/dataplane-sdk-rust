@@ -12,7 +12,7 @@
 
 use super::{
     error::HandlerResult,
-    model::{data_flow::DataFlow, messages::DataFlowResponseMessage},
+    model::{data_flow::DataFlow, messages::DataFlowStatusMessage},
 };
 
 #[cfg(test)]
@@ -29,13 +29,13 @@ pub trait DataFlowHandler: Send + Sync {
         &self,
         tx: &mut Self::Transaction,
         flow: &DataFlow,
-    ) -> HandlerResult<DataFlowResponseMessage>;
+    ) -> HandlerResult<DataFlowStatusMessage>;
 
     async fn on_prepare(
         &self,
         tx: &mut Self::Transaction,
         flow: &DataFlow,
-    ) -> HandlerResult<DataFlowResponseMessage>;
+    ) -> HandlerResult<DataFlowStatusMessage>;
 
     async fn on_terminate(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> HandlerResult<()>;
     async fn on_started(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> HandlerResult<()>;

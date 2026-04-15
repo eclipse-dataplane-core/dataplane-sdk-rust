@@ -21,8 +21,8 @@ use crate::{
         model::{
             data_flow::{DataFlow, DataFlowState, DataFlowType},
             messages::{
-                DataFlowPrepareMessage, DataFlowResponseMessage, DataFlowStartMessage,
-                DataFlowStartedNotificationMessage,
+                DataFlowPrepareMessage, DataFlowStartMessage, DataFlowStartedNotificationMessage,
+                DataFlowStatusMessage,
             },
         },
     },
@@ -46,7 +46,7 @@ where
         &self,
         participant_context_id: &str,
         req: DataFlowStartMessage,
-    ) -> SdkResult<DataFlowResponseMessage> {
+    ) -> SdkResult<DataFlowStatusMessage> {
         let flow = DataFlow::builder()
             .id(req.process_id)
             .counter_party_id(req.counter_party_id)
@@ -82,7 +82,7 @@ where
         &self,
         participant_context_id: &str,
         req: DataFlowPrepareMessage,
-    ) -> SdkResult<DataFlowResponseMessage> {
+    ) -> SdkResult<DataFlowStatusMessage> {
         let mut flow = DataFlow::builder()
             .id(req.process_id)
             .counter_party_id(req.counter_party_id)
@@ -120,7 +120,6 @@ where
         flow_id: &str,
         reason: Option<String>,
     ) -> SdkResult<()> {
-        dbg!("Terminating");
         let mut tx = self.ctx.begin().await?;
         let mut flow = self
             .repo

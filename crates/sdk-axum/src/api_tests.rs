@@ -13,7 +13,7 @@
 use async_trait::async_trait;
 use axum::Router;
 use dataplane_sdk::core::error::HandlerResult;
-use dataplane_sdk::core::model::messages::DataFlowResponseMessage;
+use dataplane_sdk::core::model::messages::DataFlowStatusMessage;
 use dataplane_sdk::core::model::participant::ParticipantContext;
 use dataplane_sdk::sdk;
 use dataplane_sdk::{
@@ -91,7 +91,7 @@ mock! {
             &self,
             tx: &mut MockTx,
             flow: &DataFlow,
-        ) -> HandlerResult<DataFlowResponseMessage>;
+        ) -> HandlerResult<DataFlowStatusMessage>;
 
         async fn on_terminate(
             &self,
@@ -103,7 +103,7 @@ mock! {
             &self,
             tx: &mut MockTx,
             flow: &DataFlow,
-        ) -> HandlerResult<DataFlowResponseMessage>;
+        ) -> HandlerResult<DataFlowStatusMessage>;
 
         async fn on_suspend(
             &self,
@@ -172,7 +172,7 @@ mod start {
     use dataplane_sdk::core::model::{
         data_address::DataAddress,
         data_flow::DataFlowState,
-        messages::{DataFlowResponseMessage, DataFlowStartMessage},
+        messages::{DataFlowStartMessage, DataFlowStatusMessage},
     };
     use http_body_util::BodyExt;
     use rstest::rstest;
@@ -197,9 +197,8 @@ mod start {
 
         handler.expect_can_handle().returning(|_| Ok(true));
         handler.expect_on_start().returning(|_, _flow| {
-            Ok(DataFlowResponseMessage::builder()
+            Ok(DataFlowStatusMessage::builder()
                 .state(DataFlowState::Started)
-                .dataplane_id("dataplane_id")
                 .build())
         });
 
@@ -239,7 +238,7 @@ mod start {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
 
-        let body: DataFlowResponseMessage = serde_json::from_slice(&body).unwrap();
+        let body: DataFlowStatusMessage = serde_json::from_slice(&body).unwrap();
 
         assert!(body.data_address.is_none());
     }

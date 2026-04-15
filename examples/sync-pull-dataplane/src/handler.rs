@@ -18,7 +18,7 @@ use dataplane_sdk::core::{
     handler::DataFlowHandler,
     model::{
         data_flow::{DataFlow, DataFlowState},
-        messages::DataFlowResponseMessage,
+        messages::DataFlowStatusMessage,
     },
 };
 
@@ -48,7 +48,7 @@ where
         &self,
         tx: &mut Self::Transaction,
         flow: &DataFlow,
-    ) -> HandlerResult<DataFlowResponseMessage> {
+    ) -> HandlerResult<DataFlowStatusMessage> {
         let (token_id, endpoint, data_address) = self
             .0
             .create_token()
@@ -68,9 +68,8 @@ where
             .await
             .map_err(|err| HandlerError::Generic(err.into()))?;
 
-        Ok(DataFlowResponseMessage::builder()
+        Ok(DataFlowStatusMessage::builder()
             .data_address(data_address)
-            .dataplane_id("dataplane-tokens")
             .state(DataFlowState::Started)
             .build())
     }
@@ -117,9 +116,8 @@ where
         &self,
         _tx: &mut Self::Transaction,
         _flow: &DataFlow,
-    ) -> HandlerResult<DataFlowResponseMessage> {
-        Ok(DataFlowResponseMessage::builder()
-            .dataplane_id("dataplane-tokens")
+    ) -> HandlerResult<DataFlowStatusMessage> {
+        Ok(DataFlowStatusMessage::builder()
             .state(DataFlowState::Prepared)
             .build())
     }

@@ -60,8 +60,7 @@ pub struct DataFlowPrepareMessage {
 #[derive(Debug, Builder, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[builder(on(String, into))]
-pub struct DataFlowResponseMessage {
-    pub dataplane_id: String,
+pub struct DataFlowStatusMessage {
     pub data_address: Option<DataAddress>,
     pub state: DataFlowState,
     pub error: Option<String>,

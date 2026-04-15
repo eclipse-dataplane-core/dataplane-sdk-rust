@@ -19,9 +19,8 @@ use dataplane_sdk::{
         db::tx::TransactionalContext,
         model::{
             messages::{
-                DataFlowPrepareMessage, DataFlowResponseMessage, DataFlowStartMessage,
-                DataFlowStartedNotificationMessage, DataFlowSuspendMessage,
-                DataFlowTerminateMessage,
+                DataFlowPrepareMessage, DataFlowStartMessage, DataFlowStartedNotificationMessage,
+                DataFlowStatusMessage, DataFlowSuspendMessage, DataFlowTerminateMessage,
             },
             participant::ParticipantContext,
         },
@@ -36,7 +35,7 @@ pub async fn start_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
     Json(msg): Json<DataFlowStartMessage>,
-) -> SignalingResult<Json<DataFlowResponseMessage>>
+) -> SignalingResult<Json<DataFlowStatusMessage>>
 where
     C: TransactionalContext,
 {
@@ -48,7 +47,7 @@ pub async fn prepare_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
     Json(msg): Json<DataFlowPrepareMessage>,
-) -> SignalingResult<Json<DataFlowResponseMessage>>
+) -> SignalingResult<Json<DataFlowStatusMessage>>
 where
     C: TransactionalContext,
 {

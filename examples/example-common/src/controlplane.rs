@@ -13,7 +13,7 @@
 use bon::Builder;
 use dataplane_sdk::core::model::{
     data_address::DataAddress,
-    messages::{DataFlowResponseMessage, DataFlowStartMessage, DataFlowStartedNotificationMessage},
+    messages::{DataFlowStartMessage, DataFlowStartedNotificationMessage, DataFlowStatusMessage},
 };
 use uuid::Uuid;
 
@@ -62,7 +62,7 @@ impl ControlPlaneSimulator {
             );
         }
 
-        let body = response.json::<DataFlowResponseMessage>().await?;
+        let body = response.json::<DataFlowStatusMessage>().await?;
 
         body.data_address
             .ok_or_else(|| anyhow::anyhow!("No data address returned from provider"))
@@ -150,7 +150,7 @@ impl ControlPlaneSimulator {
             );
         }
 
-        let body = response.json::<DataFlowResponseMessage>().await?;
+        let body = response.json::<DataFlowStatusMessage>().await?;
 
         Ok(body.data_address)
     }

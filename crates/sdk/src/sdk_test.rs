@@ -28,7 +28,7 @@ mod prepare {
         core::{
             db::tx::MockTransaction,
             error::{DbError, HandlerError},
-            model::{data_flow::DataFlowState, messages::DataFlowResponseMessage},
+            model::{data_flow::DataFlowState, messages::DataFlowStatusMessage},
         },
         error::SdkError,
         sdk::DataPlaneSdk,
@@ -54,9 +54,8 @@ mod prepare {
             .returning(|_| Box::pin(future::ready(Ok(true))));
 
         handler.expect_on_prepare().returning(|_, _| {
-            Box::pin(future::ready(Ok(DataFlowResponseMessage::builder()
+            Box::pin(future::ready(Ok(DataFlowStatusMessage::builder()
                 .state(DataFlowState::Started)
-                .dataplane_id("dataplane-id")
                 .build())))
         });
 
@@ -110,9 +109,8 @@ mod prepare {
         });
 
         handler.expect_on_prepare().returning(|_, _| {
-            Box::pin(future::ready(Ok(DataFlowResponseMessage::builder()
+            Box::pin(future::ready(Ok(DataFlowStatusMessage::builder()
                 .state(DataFlowState::Started)
-                .dataplane_id("dataplane-id")
                 .build())))
         });
 
@@ -203,7 +201,7 @@ mod start {
         core::{
             db::tx::MockTransaction,
             error::{DbError, HandlerError},
-            model::{data_flow::DataFlowState, messages::DataFlowResponseMessage},
+            model::{data_flow::DataFlowState, messages::DataFlowStatusMessage},
         },
         error::SdkError,
         sdk::DataPlaneSdk,
@@ -229,9 +227,8 @@ mod start {
             .returning(|_| Box::pin(future::ready(Ok(true))));
 
         handler.expect_on_start().returning(|_, _| {
-            Box::pin(future::ready(Ok(DataFlowResponseMessage::builder()
+            Box::pin(future::ready(Ok(DataFlowStatusMessage::builder()
                 .state(DataFlowState::Started)
-                .dataplane_id("dataplane-id")
                 .build())))
         });
 
