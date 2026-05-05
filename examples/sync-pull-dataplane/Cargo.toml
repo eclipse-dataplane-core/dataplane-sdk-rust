@@ -26,4 +26,4 @@ serde_json.workspace=true
 async-trait.workspace=true
 base64 = "0.22.1"
 config = "0.15.21"
-tower-http = { version = "0.6.6", features = ["trace"]}
+tower-http = { version = "0.6.9", features = ["trace"]}

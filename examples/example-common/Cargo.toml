@@ -15,7 +15,7 @@ bon.workspace=true
 anyhow.workspace=true
 reqwest.workspace=true
 uuid.workspace=true
-tower-http = { version = "0.6.6", features = ["trace"]}
+tower-http = { version = "0.6.9", features = ["trace"]}
 
 [lints]
 workspace = true
