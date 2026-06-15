@@ -32,6 +32,8 @@ testcontainers = "0.26"
 testcontainers-modules =  "0.14"
 anyhow = "1.0.102"
 rstest = "0.26.1"
+futures = "0.3.32"
+regex = "1.12.4"
 
 [workspace.lints.clippy]
 unwrap_used = "deny"

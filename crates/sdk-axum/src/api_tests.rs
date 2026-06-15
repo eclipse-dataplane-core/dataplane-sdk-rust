@@ -196,8 +196,9 @@ mod start {
         repo.expect_create().returning(|_, _| Ok(()));
 
         handler.expect_can_handle().returning(|_| Ok(true));
-        handler.expect_on_start().returning(|_, _flow| {
+        handler.expect_on_start().returning(|_, flow| {
             Ok(DataFlowStatusMessage::builder()
+                .data_flow_id(flow.id.clone())
                 .state(DataFlowState::Started)
                 .build())
         });
@@ -402,5 +403,377 @@ mod suspend {
             "Response was not successful: {:?}",
             response.status()
         );
+    }
+}
+
+mod prepare {
+    use axum::{
+        body::Body,
+        http::{Request, header::CONTENT_TYPE},
+    };
+    use dataplane_sdk::core::model::{
+        data_flow::DataFlowState,
+        messages::{DataFlowPrepareMessage, DataFlowStatusMessage},
+    };
+    use http_body_util::BodyExt;
+    use rstest::rstest;
+    use tower::ServiceExt;
+
+    use crate::api_tests::{MockTx, TestCtx, context, multi_participant_ctx, sdk, single_ctx};
+
+    #[rstest]
+    #[case(single_ctx())]
+    #[case(multi_participant_ctx())]
+    #[tokio::test]
+    async fn prepare_flow_test(#[case] test_ctx: TestCtx) {
+        let (mut ctx, mut repo, mut handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTx::new();
+            tx.expect_commit().returning(|| Ok(()));
+            Ok(tx)
+        });
+
+        repo.expect_create().returning(|_, _| Ok(()));
+
+        handler.expect_can_handle().returning(|_| Ok(true));
+        handler.expect_on_prepare().returning(|_, flow| {
+            Ok(DataFlowStatusMessage::builder()
+                .data_flow_id(flow.id.clone())
+                .state(DataFlowState::Prepared)
+                .build())
+        });
+
+        let app = test_ctx.app(sdk(ctx, repo, handler));
+
+        let msg = DataFlowPrepareMessage::builder()
+            .dataset_id("dataset_id")
+            .participant_id("counter_party_id")
+            .process_id("process_id")
+            .agreement_id("agreement_id")
+            .transfer_type("transfer_type")
+            .dataspace_context("dataspace_context")
+            .callback_address("callback_address")
+            .message_id("message_id")
+            .counter_party_id("counter_party_id")
+            .build();
+
+        let payload = serde_json::to_vec(&msg).unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .header(CONTENT_TYPE, "application/json")
+                    .uri(test_ctx.base_url + "/dataflows/prepare")
+                    .body(Body::from(payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert!(
+            response.status().is_success(),
+            "Response was not successful: {:?}",
+            response.status()
+        );
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body: DataFlowStatusMessage = serde_json::from_slice(&body).unwrap();
+
+        assert!(matches!(body.state, DataFlowState::Prepared));
+    }
+}
+
+mod started {
+    use axum::{
+        body::Body,
+        http::{Request, header::CONTENT_TYPE},
+    };
+    use dataplane_sdk::core::model::{
+        data_flow::{DataFlow, DataFlowState, DataFlowType},
+        messages::DataFlowStartedNotificationMessage,
+    };
+    use rstest::rstest;
+    use tower::ServiceExt;
+
+    use crate::api_tests::{MockTx, TestCtx, context, multi_participant_ctx, sdk, single_ctx};
+
+    #[rstest]
+    #[case(single_ctx())]
+    #[case(multi_participant_ctx())]
+    #[tokio::test]
+    async fn started_flow_test(#[case] test_ctx: TestCtx) {
+        let (mut ctx, mut repo, mut handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTx::new();
+            tx.expect_commit().returning(|| Ok(()));
+            Ok(tx)
+        });
+
+        repo.expect_fetch_by_id().returning(|_, _| {
+            Ok(Some(
+                DataFlow::builder()
+                    .id("example-flow-id")
+                    .state(DataFlowState::Started)
+                    .counter_party_id("counter_party_id")
+                    .participant_context_id("example-participant")
+                    .dataset_id("dataset_id")
+                    .agreement_id("agreement_id")
+                    .dataspace_context("dataspace_context")
+                    .participant_id("participant_id")
+                    .callback_address("callback_address")
+                    .transfer_type("transfer_type")
+                    .kind(DataFlowType::Provider)
+                    .build(),
+            ))
+        });
+        repo.expect_update().returning(|_, _| Ok(()));
+
+        handler.expect_on_started().returning(|_, _flow| Ok(()));
+
+        let app = test_ctx.app(sdk(ctx, repo, handler));
+
+        let msg = DataFlowStartedNotificationMessage::builder().build();
+        let payload = serde_json::to_vec(&msg).unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .header(CONTENT_TYPE, "application/json")
+                    .uri(format!(
+                        "{}/dataflows/{}/started",
+                        test_ctx.base_url, "example-flow-id"
+                    ))
+                    .body(Body::from(payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert!(
+            response.status().is_success(),
+            "Response was not successful: {:?}",
+            response.status()
+        );
+    }
+}
+
+mod completed {
+    use axum::{body::Body, http::Request};
+    use dataplane_sdk::core::model::data_flow::{DataFlow, DataFlowState, DataFlowType};
+    use rstest::rstest;
+    use tower::ServiceExt;
+
+    use crate::api_tests::{MockTx, TestCtx, context, multi_participant_ctx, sdk, single_ctx};
+
+    #[rstest]
+    #[case(single_ctx())]
+    #[case(multi_participant_ctx())]
+    #[tokio::test]
+    async fn completed_flow_test(#[case] test_ctx: TestCtx) {
+        let (mut ctx, mut repo, handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTx::new();
+            tx.expect_commit().returning(|| Ok(()));
+            Ok(tx)
+        });
+
+        repo.expect_fetch_by_id().returning(|_, _| {
+            Ok(Some(
+                DataFlow::builder()
+                    .id("example-flow-id")
+                    .state(DataFlowState::Started)
+                    .counter_party_id("counter_party_id")
+                    .participant_context_id("example-participant")
+                    .dataset_id("dataset_id")
+                    .agreement_id("agreement_id")
+                    .dataspace_context("dataspace_context")
+                    .participant_id("participant_id")
+                    .callback_address("callback_address")
+                    .transfer_type("transfer_type")
+                    .kind(DataFlowType::Provider)
+                    .build(),
+            ))
+        });
+        repo.expect_update().returning(|_, _| Ok(()));
+
+        let app = test_ctx.app(sdk(ctx, repo, handler));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!(
+                        "{}/dataflows/{}/completed",
+                        test_ctx.base_url, "example-flow-id"
+                    ))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert!(
+            response.status().is_success(),
+            "Response was not successful: {:?}",
+            response.status()
+        );
+    }
+}
+
+mod flow_status {
+    use axum::{body::Body, http::Request};
+    use dataplane_sdk::core::model::{
+        data_flow::{DataFlow, DataFlowState, DataFlowType},
+        messages::DataFlowStatusResponseMessage,
+    };
+    use http_body_util::BodyExt;
+    use rstest::rstest;
+    use tower::ServiceExt;
+
+    use crate::api_tests::{MockTx, TestCtx, context, multi_participant_ctx, sdk, single_ctx};
+
+    #[rstest]
+    #[case(single_ctx())]
+    #[case(multi_participant_ctx())]
+    #[tokio::test]
+    async fn flow_status_test(#[case] test_ctx: TestCtx) {
+        let (mut ctx, mut repo, handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTx::new();
+            tx.expect_commit().returning(|| Ok(()));
+            Ok(tx)
+        });
+
+        repo.expect_fetch_by_id().returning(|_, _| {
+            Ok(Some(
+                DataFlow::builder()
+                    .id("example-flow-id")
+                    .state(DataFlowState::Started)
+                    .counter_party_id("counter_party_id")
+                    .participant_context_id("example-participant")
+                    .dataset_id("dataset_id")
+                    .agreement_id("agreement_id")
+                    .dataspace_context("dataspace_context")
+                    .participant_id("participant_id")
+                    .callback_address("callback_address")
+                    .transfer_type("transfer_type")
+                    .kind(DataFlowType::Provider)
+                    .build(),
+            ))
+        });
+
+        let app = test_ctx.app(sdk(ctx, repo, handler));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!(
+                        "{}/dataflows/{}/status",
+                        test_ctx.base_url, "example-flow-id"
+                    ))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert!(
+            response.status().is_success(),
+            "Response was not successful: {:?}",
+            response.status()
+        );
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body: DataFlowStatusResponseMessage = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(body.data_flow_id, "example-flow-id");
+        assert!(matches!(body.state, DataFlowState::Started));
+    }
+}
+
+mod resume {
+    use axum::{
+        body::Body,
+        http::{Request, header::CONTENT_TYPE},
+    };
+    use dataplane_sdk::core::model::{
+        data_flow::{DataFlow, DataFlowState, DataFlowType},
+        messages::{DataFlowResumeMessage, DataFlowStatusMessage},
+    };
+    use http_body_util::BodyExt;
+    use rstest::rstest;
+    use tower::ServiceExt;
+
+    use crate::api_tests::{MockTx, TestCtx, context, multi_participant_ctx, sdk, single_ctx};
+
+    #[rstest]
+    #[case(single_ctx())]
+    #[case(multi_participant_ctx())]
+    #[tokio::test]
+    async fn resume_flow_test(#[case] test_ctx: TestCtx) {
+        let (mut ctx, mut repo, handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTx::new();
+            tx.expect_commit().returning(|| Ok(()));
+            Ok(tx)
+        });
+
+        repo.expect_fetch_by_id().returning(|_, _| {
+            Ok(Some(
+                DataFlow::builder()
+                    .id("example-flow-id")
+                    .state(DataFlowState::Suspended)
+                    .counter_party_id("counter_party_id")
+                    .participant_context_id("example-participant")
+                    .dataset_id("dataset_id")
+                    .agreement_id("agreement_id")
+                    .dataspace_context("dataspace_context")
+                    .participant_id("participant_id")
+                    .callback_address("callback_address")
+                    .transfer_type("transfer_type")
+                    .kind(DataFlowType::Provider)
+                    .build(),
+            ))
+        });
+        repo.expect_update().returning(|_, _| Ok(()));
+
+        let app = test_ctx.app(sdk(ctx, repo, handler));
+
+        let msg = DataFlowResumeMessage::builder().build();
+        let payload = serde_json::to_vec(&msg).unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .header(CONTENT_TYPE, "application/json")
+                    .uri(format!(
+                        "{}/dataflows/{}/resume",
+                        test_ctx.base_url, "example-flow-id"
+                    ))
+                    .body(Body::from(payload))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert!(
+            response.status().is_success(),
+            "Response was not successful: {:?}",
+            response.status()
+        );
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body: DataFlowStatusMessage = serde_json::from_slice(&body).unwrap();
+
+        assert!(matches!(body.state, DataFlowState::Started));
     }
 }

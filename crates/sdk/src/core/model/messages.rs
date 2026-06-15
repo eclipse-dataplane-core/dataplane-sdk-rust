@@ -33,9 +33,18 @@ pub struct DataFlowStartMessage {
     pub transfer_type: String,
     pub data_address: Option<DataAddress>,
     #[builder(default)]
+    #[serde(default)]
     pub labels: Vec<String>,
     #[builder(default)]
+    #[serde(default)]
     pub metadata: HashMap<String, Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Builder)]
+#[serde(rename_all = "camelCase")]
+#[builder(on(String, into))]
+pub struct DataFlowResumeMessage {
+    pub data_address: Option<DataAddress>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Builder)]
@@ -52,8 +61,10 @@ pub struct DataFlowPrepareMessage {
     pub callback_address: String,
     pub transfer_type: String,
     #[builder(default)]
+    #[serde(default)]
     pub labels: Vec<String>,
     #[builder(default)]
+    #[serde(default)]
     pub metadata: HashMap<String, Value>,
 }
 
@@ -61,6 +72,7 @@ pub struct DataFlowPrepareMessage {
 #[serde(rename_all = "camelCase")]
 #[builder(on(String, into))]
 pub struct DataFlowStatusMessage {
+    pub data_flow_id: String,
     pub data_address: Option<DataAddress>,
     pub state: DataFlowState,
     pub error: Option<String>,

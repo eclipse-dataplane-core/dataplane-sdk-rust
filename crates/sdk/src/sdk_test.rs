@@ -55,7 +55,8 @@ mod prepare {
 
         handler.expect_on_prepare().returning(|_, _| {
             Box::pin(future::ready(Ok(DataFlowStatusMessage::builder()
-                .state(DataFlowState::Started)
+                .state(DataFlowState::Prepared)
+                .data_flow_id("flow-id")
                 .build())))
         });
 
@@ -110,7 +111,8 @@ mod prepare {
 
         handler.expect_on_prepare().returning(|_, _| {
             Box::pin(future::ready(Ok(DataFlowStatusMessage::builder()
-                .state(DataFlowState::Started)
+                .data_flow_id("flow-id")
+                .state(DataFlowState::Prepared)
                 .build())))
         });
 
@@ -228,6 +230,7 @@ mod start {
 
         handler.expect_on_start().returning(|_, _| {
             Box::pin(future::ready(Ok(DataFlowStatusMessage::builder()
+                .data_flow_id("flow-id")
                 .state(DataFlowState::Started)
                 .build())))
         });
@@ -279,6 +282,13 @@ mod start {
             Box::pin(future::ready(Err(DbError::AlreadyExists(
                 "Data flow already exists".to_string(),
             ))))
+        });
+
+        handler.expect_on_start().returning(|_, _| {
+            Box::pin(future::ready(Ok(DataFlowStatusMessage::builder()
+                .data_flow_id("flow-id")
+                .state(DataFlowState::Started)
+                .build())))
         });
 
         handler
@@ -512,6 +522,317 @@ mod suspend {
             .unwrap();
 
         let response = sdk.suspend("participant", "flow_id", None).await;
+
+        assert!(matches!(
+            response,
+            Err(crate::error::SdkError::Repo(DbError::NotFound(_)))
+        ));
+    }
+}
+
+mod started {
+    use std::future;
+
+    use crate::{
+        core::{
+            db::tx::MockTransaction, error::DbError,
+            model::messages::DataFlowStartedNotificationMessage,
+        },
+        sdk::DataPlaneSdk,
+        sdk_test::{context, flow},
+    };
+
+    fn started_message() -> DataFlowStartedNotificationMessage {
+        DataFlowStartedNotificationMessage::builder().build()
+    }
+
+    #[tokio::test]
+    async fn started() {
+        let (mut ctx, mut repo, mut handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(|_, _| Box::pin(future::ready(Ok(Some(flow())))));
+
+        repo.expect_update()
+            .returning(|_, _| Box::pin(future::ready(Ok(()))));
+
+        handler
+            .expect_on_started()
+            .returning(|_, _| Box::pin(future::ready(Ok(()))));
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk
+            .started("participant", "flow_id", started_message())
+            .await;
+
+        assert!(response.is_ok());
+    }
+
+    #[tokio::test]
+    async fn started_not_found() {
+        let (mut ctx, mut repo, mut handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+
+        handler.expect_on_started().times(0);
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk
+            .started("participant", "flow_id", started_message())
+            .await;
+
+        assert!(matches!(
+            response,
+            Err(crate::error::SdkError::Repo(DbError::NotFound(_)))
+        ));
+    }
+}
+
+mod completed {
+    use std::future;
+
+    use crate::{
+        core::{db::tx::MockTransaction, error::DbError},
+        sdk::DataPlaneSdk,
+        sdk_test::{context, flow},
+    };
+
+    #[tokio::test]
+    async fn completed() {
+        let (mut ctx, mut repo, mut handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(|_, _| Box::pin(future::ready(Ok(Some(flow())))));
+
+        repo.expect_update()
+            .returning(|_, _| Box::pin(future::ready(Ok(()))));
+
+        handler
+            .expect_on_completed()
+            .returning(|_, _| Box::pin(future::ready(Ok(()))));
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk.completed("participant", "flow_id").await;
+
+        assert!(response.is_ok());
+    }
+
+    #[tokio::test]
+    async fn completed_not_found() {
+        let (mut ctx, mut repo, mut handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+
+        handler.expect_on_completed().times(0);
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk.completed("participant", "flow_id").await;
+
+        assert!(matches!(
+            response,
+            Err(crate::error::SdkError::Repo(DbError::NotFound(_)))
+        ));
+    }
+}
+
+mod resume {
+    use std::future;
+
+    use crate::{
+        core::{
+            db::tx::MockTransaction,
+            error::DbError,
+            model::{
+                data_flow::DataFlowState,
+                messages::{DataFlowResumeMessage, DataFlowStatusMessage},
+            },
+        },
+        sdk::DataPlaneSdk,
+        sdk_test::{context, flow},
+    };
+
+    fn resume_message() -> DataFlowResumeMessage {
+        DataFlowResumeMessage::builder().build()
+    }
+
+    #[tokio::test]
+    async fn resume() {
+        let (mut ctx, mut repo, mut handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id().returning(|_, _| {
+            let mut f = flow();
+            f.state = DataFlowState::Suspended;
+            Box::pin(future::ready(Ok(Some(f))))
+        });
+
+        repo.expect_update()
+            .returning(|_, _| Box::pin(future::ready(Ok(()))));
+
+        handler.expect_on_resume().returning(|_, _| {
+            Box::pin(future::ready(Ok(DataFlowStatusMessage::builder()
+                .data_flow_id("flow-id")
+                .state(DataFlowState::Started)
+                .build())))
+        });
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk
+            .resume("participant", "flow_id", resume_message())
+            .await
+            .unwrap();
+
+        assert!(matches!(response.state, DataFlowState::Started));
+    }
+
+    #[tokio::test]
+    async fn resume_not_found() {
+        let (mut ctx, mut repo, mut handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+
+        handler.expect_on_resume().times(0);
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk.resume("participant", "flow_id", resume_message()).await;
+
+        assert!(matches!(
+            response,
+            Err(crate::error::SdkError::Repo(DbError::NotFound(_)))
+        ));
+    }
+}
+
+mod status {
+    use std::future;
+
+    use crate::{
+        core::{db::tx::MockTransaction, error::DbError, model::data_flow::DataFlowState},
+        sdk::DataPlaneSdk,
+        sdk_test::{context, flow},
+    };
+
+    #[tokio::test]
+    async fn status() {
+        let (mut ctx, mut repo, handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(|_, _| Box::pin(future::ready(Ok(Some(flow())))));
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk.status("participant", "flow_id").await.unwrap();
+
+        assert_eq!(response.data_flow_id, "flow-id");
+        assert!(matches!(response.state, DataFlowState::Started));
+    }
+
+    #[tokio::test]
+    async fn status_not_found() {
+        let (mut ctx, mut repo, handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk.status("participant", "flow_id").await;
 
         assert!(matches!(
             response,

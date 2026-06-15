@@ -21,8 +21,9 @@ use crate::{
         model::{
             data_flow::{DataFlow, DataFlowState, DataFlowType},
             messages::{
-                DataFlowPrepareMessage, DataFlowStartMessage, DataFlowStartedNotificationMessage,
-                DataFlowStatusMessage,
+                DataFlowPrepareMessage, DataFlowResumeMessage, DataFlowStartMessage,
+                DataFlowStartedNotificationMessage, DataFlowStatusMessage,
+                DataFlowStatusResponseMessage,
             },
         },
     },
@@ -47,7 +48,7 @@ where
         participant_context_id: &str,
         req: DataFlowStartMessage,
     ) -> SdkResult<DataFlowStatusMessage> {
-        let flow = DataFlow::builder()
+        let mut flow = DataFlow::builder()
             .id(req.process_id)
             .counter_party_id(req.counter_party_id)
             .maybe_data_address(req.data_address)
@@ -66,8 +67,19 @@ where
 
         if self.handler.can_handle(&flow).await? {
             let mut tx = self.ctx.begin().await?;
-            self.repo.create(&mut tx, &flow).await?;
             let response = self.handler.on_start(&mut tx, &flow).await?;
+
+            match response.state {
+                DataFlowState::Starting => flow.transition_to_starting()?,
+                DataFlowState::Started => flow.transition_to_started()?,
+                _ => {
+                    return Err(SdkError::Handler(HandlerError::NotSupported(
+                        "Handler can only transition to Starting or Started state".to_string(),
+                    )));
+                }
+            }
+
+            self.repo.create(&mut tx, &flow).await?;
             tx.commit().await?;
 
             Ok(response)
@@ -102,7 +114,17 @@ where
         if self.handler.can_handle(&flow).await? {
             let mut tx = self.ctx.begin().await?;
             let response = self.handler.on_prepare(&mut tx, &flow).await?;
-            flow.transition_to_prepared()?;
+
+            match response.state {
+                DataFlowState::Preparing => flow.transition_to_preparing()?,
+                DataFlowState::Prepared => flow.transition_to_prepared()?,
+                _ => {
+                    return Err(SdkError::Handler(HandlerError::NotSupported(format!(
+                        "Handler can only transition to Preparing or Prepared state: current state {:?}",
+                        response.state
+                    ))));
+                }
+            }
             self.repo.create(&mut tx, &flow).await?;
             tx.commit().await?;
 
@@ -160,6 +182,24 @@ where
         Ok(())
     }
 
+    pub async fn completed(&self, _ctx: &str, flow_id: &str) -> SdkResult<()> {
+        let mut tx = self.ctx.begin().await?;
+        let mut flow = self
+            .repo
+            .fetch_by_id(&mut tx, flow_id)
+            .await?
+            .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
+
+        flow.transition_to_completed()?;
+
+        self.handler.on_completed(&mut tx, &flow).await?;
+
+        self.repo.update(&mut tx, &flow).await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn suspend(
         &self,
         _ctx: &str,
@@ -182,6 +222,61 @@ where
         tx.commit().await?;
 
         Ok(())
+    }
+
+    pub async fn resume(
+        &self,
+        _ctx: &str,
+        flow_id: &str,
+        msg: DataFlowResumeMessage,
+    ) -> SdkResult<DataFlowStatusMessage> {
+        let mut tx = self.ctx.begin().await?;
+
+        let mut flow = self
+            .repo
+            .fetch_by_id(&mut tx, flow_id)
+            .await?
+            .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
+
+        flow.data_address = msg.data_address;
+
+        let response = self.handler.on_resume(&mut tx, &flow).await?;
+
+        match response.state {
+            DataFlowState::Starting => flow.transition_to_starting()?,
+            DataFlowState::Started => flow.transition_to_started()?,
+            _ => {
+                return Err(SdkError::Handler(HandlerError::NotSupported(
+                    "Handler can only transition to Starting or Started state".to_string(),
+                )));
+            }
+        }
+
+        self.repo.update(&mut tx, &flow).await?;
+
+        tx.commit().await?;
+
+        Ok(response)
+    }
+    pub async fn status(
+        &self,
+        _ctx: &str,
+        flow_id: &str,
+    ) -> SdkResult<DataFlowStatusResponseMessage> {
+        let mut tx = self.ctx.begin().await?;
+
+        let flow = self
+            .repo
+            .fetch_by_id(&mut tx, flow_id)
+            .await?
+            .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
+
+        tx.commit().await?;
+
+        Ok(DataFlowStatusResponseMessage::builder()
+            .data_flow_id(flow.id)
+            .state(flow.state)
+            .build())
     }
 
     pub async fn fetch_by_id(

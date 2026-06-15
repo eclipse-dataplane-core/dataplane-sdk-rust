@@ -12,7 +12,10 @@
 
 use super::{
     error::HandlerResult,
-    model::{data_flow::DataFlow, messages::DataFlowStatusMessage},
+    model::{
+        data_flow::{DataFlow, DataFlowState},
+        messages::DataFlowStatusMessage,
+    },
 };
 
 #[cfg(test)]
@@ -20,6 +23,7 @@ use crate::core::db::tx::MockTransaction;
 
 #[async_trait::async_trait]
 #[cfg_attr(test, mockall::automock(type Transaction = MockTransaction;))]
+#[allow(unused_variables)]
 pub trait DataFlowHandler: Send + Sync {
     type Transaction;
 
@@ -40,5 +44,24 @@ pub trait DataFlowHandler: Send + Sync {
     async fn on_terminate(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> HandlerResult<()>;
     async fn on_started(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> HandlerResult<()>;
 
+    async fn on_completed(
+        &self,
+        _tx: &mut Self::Transaction,
+        _flow: &DataFlow,
+    ) -> HandlerResult<()> {
+        Ok(())
+    }
+
     async fn on_suspend(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> HandlerResult<()>;
+
+    async fn on_resume(
+        &self,
+        tx: &mut Self::Transaction,
+        flow: &DataFlow,
+    ) -> HandlerResult<DataFlowStatusMessage> {
+        Ok(DataFlowStatusMessage::builder()
+            .data_flow_id(flow.id.clone())
+            .state(DataFlowState::Started)
+            .build())
+    }
 }

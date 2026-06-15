@@ -71,8 +71,6 @@ where
     let id = Uuid::new_v4().to_string();
     let transfer = create_data_flow(&id);
 
-    dbg!(&transfer);
-
     store.create(&mut tx, &transfer).await.unwrap();
 
     let saved = store.fetch_by_id(&mut tx, &id).await.unwrap().unwrap();

@@ -19,8 +19,9 @@ use dataplane_sdk::{
         db::tx::TransactionalContext,
         model::{
             messages::{
-                DataFlowPrepareMessage, DataFlowStartMessage, DataFlowStartedNotificationMessage,
-                DataFlowStatusMessage, DataFlowSuspendMessage, DataFlowTerminateMessage,
+                DataFlowPrepareMessage, DataFlowResumeMessage, DataFlowStartMessage,
+                DataFlowStartedNotificationMessage, DataFlowStatusMessage,
+                DataFlowStatusResponseMessage, DataFlowSuspendMessage, DataFlowTerminateMessage,
             },
             participant::ParticipantContext,
         },
@@ -74,6 +75,31 @@ where
     Ok(())
 }
 
+pub async fn completed_flow<C>(
+    State(sdk): State<DataPlaneSdk<C>>,
+    Extension(participant): Extension<ParticipantContext>,
+    Path(params): Path<FlowParams>,
+) -> SignalingResult<()>
+where
+    C: TransactionalContext,
+{
+    sdk.completed(&participant.id, &params.id).await?;
+    Ok(())
+}
+
+pub async fn flow_status<C>(
+    State(sdk): State<DataPlaneSdk<C>>,
+    Extension(participant): Extension<ParticipantContext>,
+    Path(params): Path<FlowParams>,
+) -> SignalingResult<Json<DataFlowStatusResponseMessage>>
+where
+    C: TransactionalContext,
+{
+    sdk.status(&participant.id, &params.id)
+        .await
+        .map(|status| Ok(Json(status)))?
+}
+
 pub async fn terminate_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
@@ -99,4 +125,18 @@ where
 {
     sdk.suspend(&participant.id, &params.id, msg.reason).await?;
     Ok(())
+}
+
+pub async fn resume_flow<C>(
+    State(sdk): State<DataPlaneSdk<C>>,
+    Extension(participant): Extension<ParticipantContext>,
+    Path(params): Path<FlowParams>,
+    Json(msg): Json<DataFlowResumeMessage>,
+) -> SignalingResult<Json<DataFlowStatusMessage>>
+where
+    C: TransactionalContext,
+{
+    sdk.resume(&participant.id, &params.id, msg)
+        .await
+        .map(|status| Ok(Json(status)))?
 }

@@ -71,6 +71,7 @@ where
         Ok(DataFlowStatusMessage::builder()
             .data_address(data_address)
             .state(DataFlowState::Started)
+            .data_flow_id(flow.id.clone())
             .build())
     }
     async fn on_terminate(
@@ -115,10 +116,11 @@ where
     async fn on_prepare(
         &self,
         _tx: &mut Self::Transaction,
-        _flow: &DataFlow,
+        flow: &DataFlow,
     ) -> HandlerResult<DataFlowStatusMessage> {
         Ok(DataFlowStatusMessage::builder()
             .state(DataFlowState::Prepared)
+            .data_flow_id(flow.id.clone())
             .build())
     }
 

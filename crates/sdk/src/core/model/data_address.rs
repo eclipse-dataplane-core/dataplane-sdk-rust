@@ -18,11 +18,13 @@ use serde::{Deserialize, Serialize};
 #[builder(on(String, into))]
 pub struct DataAddress {
     #[builder(default = "DataAddress".to_string())]
+    #[serde(default = "data_address")]
     #[serde(rename = "@type")]
     pub kind: String,
     pub endpoint: String,
     pub endpoint_type: String,
     #[builder(default)]
+    #[serde(default)]
     pub endpoint_properties: Vec<EndpointProperty>,
 }
 
@@ -40,8 +42,17 @@ impl DataAddress {
 #[builder(on(String, into))]
 pub struct EndpointProperty {
     #[builder(default = "EndpointProperty".to_string())]
+    #[serde(default = "endpoint_property")]
     #[serde(rename = "@type")]
     pub kind: String,
     pub name: String,
     pub value: String,
+}
+
+fn data_address() -> String {
+    "DataAddress".to_string()
+}
+
+fn endpoint_property() -> String {
+    "EndpointProperty".to_string()
 }

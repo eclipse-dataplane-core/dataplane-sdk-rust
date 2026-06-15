@@ -10,10 +10,16 @@
 //         Metaform Systems, Inc. - initial API and implementation
 //
 
-use axum::{Router, routing::post};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use dataplane_sdk::{core::db::tx::TransactionalContext, sdk::DataPlaneSdk};
 
-use crate::api::{prepare_flow, start_flow, started_flow, suspend_flow, terminate_flow};
+use crate::api::{
+    completed_flow, flow_status, prepare_flow, resume_flow, start_flow, started_flow, suspend_flow,
+    terminate_flow,
+};
 
 pub fn router<C>() -> Router<DataPlaneSdk<C>>
 where
@@ -25,7 +31,10 @@ where
         .route("/api/v1/dataflows/prepare", post(prepare_flow))
         .route("/api/v1/dataflows/{id}/terminate", post(terminate_flow))
         .route("/api/v1/dataflows/{id}/started", post(started_flow))
+        .route("/api/v1/dataflows/{id}/completed", post(completed_flow))
+        .route("/api/v1/dataflows/{id}/status", get(flow_status))
         .route("/api/v1/dataflows/{id}/suspend", post(suspend_flow))
+        .route("/api/v1/dataflows/{id}/resume", post(resume_flow))
 }
 
 pub fn participants_router<C>() -> Router<DataPlaneSdk<C>>
@@ -51,7 +60,19 @@ where
             post(started_flow),
         )
         .route(
+            "/api/v1/{participant_context_id}/dataflows/{id}/completed",
+            post(completed_flow),
+        )
+        .route(
+            "/api/v1/{participant_context_id}/dataflows/{id}/status",
+            get(flow_status),
+        )
+        .route(
             "/api/v1/{participant_context_id}/dataflows/{id}/suspend",
             post(suspend_flow),
+        )
+        .route(
+            "/api/v1/{participant_context_id}/dataflows/{id}/resume",
+            post(resume_flow),
         )
 }
