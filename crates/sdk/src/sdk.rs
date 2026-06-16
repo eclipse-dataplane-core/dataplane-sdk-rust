@@ -41,11 +41,13 @@ where
         ctx: C,
         repo: Box<dyn DataFlowRepo<Transaction = C::Transaction>>,
         handler: Box<dyn DataFlowHandler<Transaction = C::Transaction>>,
+        client: reqwest::Client,
     ) -> Self {
         Self(Arc::new(internal::DataPlaneSdkInternal {
             ctx,
             repo,
             handler,
+            client,
         }))
     }
 }
@@ -68,6 +70,7 @@ where
     ctx: C,
     repo: Option<Box<dyn DataFlowRepo<Transaction = C::Transaction>>>,
     handler: Option<Box<dyn DataFlowHandler<Transaction = C::Transaction>>>,
+    client: Option<reqwest::Client>,
 }
 
 impl<C> DataPlaneSdkBuilder<C>
@@ -79,6 +82,7 @@ where
             ctx,
             repo: None,
             handler: None,
+            client: None,
         }
     }
 
@@ -98,11 +102,20 @@ where
         self
     }
 
+    /// Overrides the `reqwest::Client` used to send control plane notifications.
+    /// Defaults to `reqwest::Client::new()` when not set.
+    pub fn with_client(mut self, client: reqwest::Client) -> Self {
+        self.client = Some(client);
+        self
+    }
+
     pub fn build(self) -> Result<DataPlaneSdk<C>, String> {
         let repo = self.repo.ok_or("DataFlowRepo is not set")?;
 
         let handler = self.handler.ok_or("DataFlowHandler is not set")?;
 
-        Ok(DataPlaneSdk::new(self.ctx, repo, handler))
+        let client = self.client.unwrap_or_default();
+
+        Ok(DataPlaneSdk::new(self.ctx, repo, handler, client))
     }
 }

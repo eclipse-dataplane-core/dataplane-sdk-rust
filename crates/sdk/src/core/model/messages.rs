@@ -72,10 +72,19 @@ pub struct DataFlowPrepareMessage {
 #[serde(rename_all = "camelCase")]
 #[builder(on(String, into))]
 pub struct DataFlowStatusMessage {
+    #[builder(default = new_message_id())]
+    #[serde(default = "new_message_id")]
+    pub message_id: String,
     pub data_flow_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub data_address: Option<DataAddress>,
     pub state: DataFlowState,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+fn new_message_id() -> String {
+    uuid::Uuid::new_v4().to_string()
 }
 
 #[derive(Debug, Builder, Serialize, Deserialize, Clone)]

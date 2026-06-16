@@ -10,8 +10,9 @@
 //         Metaform Systems, Inc. - initial API and implementation
 //
 
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
+use bon::Builder;
 use dataplane_sdk::core::{
     error::{HandlerError, HandlerResult},
     handler::DataFlowHandler,
@@ -22,24 +23,62 @@ use dataplane_sdk::core::{
     },
 };
 use dataplane_sdk_postgres::PgTransaction;
+use tokio::sync::mpsc::Sender;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 mod util;
 
 #[cfg(test)]
 mod tck_tests {
+    use dataplane_sdk::{core::db::tx::TransactionalContext, sdk::DataPlaneSdk};
+    use tokio::sync::mpsc::Receiver;
+
     use crate::util::TckTestReporter;
 
     use super::*;
 
-    static EXPECTED_FAILURES: &[&str] = &[
-        "DP_P_PULL:04-01",
-        "DP_C_PULL:03-01",
-        "DP_C_PULL:04-01",
-        "DP_C_PUSH:04-01",
-        "DP_P_PUSH:03-01",
-        "DP_P_PUSH:04-01",
-    ];
+    fn handle_notifications<T: TransactionalContext + 'static>(
+        sdk: DataPlaneSdk<T>,
+        rx: Receiver<Notification>,
+    ) where
+        <T as TransactionalContext>::Transaction: std::marker::Send,
+    {
+        tokio::task::spawn(async move {
+            let mut stream = rx;
+            while let Some(notification) = stream.recv().await {
+                tokio::time::sleep(Duration::from_millis(250)).await;
+                let flow = &notification.flow;
+                match notification.kind {
+                    NotificationKind::Started => {
+                        sdk.notify_started(&flow.participant_context_id, &flow.id, None)
+                            .await
+                            .unwrap();
+                    }
+                    NotificationKind::Suspended => tracing::info!(
+                        "Flow suspended: ID: {}, state: {:?}",
+                        notification.flow.id,
+                        notification.flow.state
+                    ),
+                    NotificationKind::Completed => {
+                        sdk.notify_completed(&flow.participant_context_id, &flow.id)
+                            .await
+                            .unwrap();
+                    }
+                    NotificationKind::Errored(err) => tracing::error!(
+                        "Flow errored: ID: {}, state: {:?}, error: {}",
+                        notification.flow.id,
+                        notification.flow.state,
+                        err
+                    ),
+                    NotificationKind::Prepared => {
+                        sdk.notify_prepared(&flow.participant_context_id, &flow.id, None)
+                            .await
+                            .unwrap();
+                    }
+                }
+            }
+        });
+    }
 
     #[tokio::test]
     async fn dataplane_tck_test() {
@@ -48,7 +87,12 @@ mod tck_tests {
             .with(tracing_subscriber::fmt::layer())
             .init();
         let (ctx, repo, _container) = util::setup_postgres_container().await;
-        let sdk = util::sdk(ctx, repo, TckTestHandler::new()).await;
+
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+
+        let sdk = util::sdk(ctx, repo, TckTestHandler::new(tx)).await;
+
+        handle_notifications(sdk.clone(), rx);
 
         util::start_signaling(8282, sdk).await;
 
@@ -56,8 +100,7 @@ mod tck_tests {
 
         let _tck_container = util::setup_tck_container(reporter.clone()).await;
 
-        let mut failures = reporter.failures();
-        failures.retain(|f| !EXPECTED_FAILURES.contains(&f.as_str()));
+        let failures = reporter.failures();
 
         assert!(
             failures.is_empty(),
@@ -72,24 +115,50 @@ fn env_filter() -> EnvFilter {
         .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into())
 }
 
-pub type Action = Box<dyn Fn(&DataFlow) -> HandlerResult<DataFlowStatusMessage> + Send + Sync>;
+pub type Handler = Box<dyn Fn(&DataFlow) -> HandlerResult<DataFlowStatusMessage> + Send + Sync>;
+
+#[derive(Builder, Clone)]
+pub struct Notification {
+    flow: DataFlow,
+    kind: NotificationKind,
+}
+
+#[derive(Clone, Debug)]
+pub enum NotificationKind {
+    Started,
+    Suspended,
+    Completed,
+    Prepared,
+    Errored(String),
+}
 pub struct TckTestHandler {
-    actions: HashMap<String, Action>,
+    handlers: HashMap<String, Handler>,
+    sender: Sender<Notification>,
 }
 
 impl TckTestHandler {
-    pub fn new() -> Self {
-        let mut actions: HashMap<String, Action> = HashMap::new();
+    pub fn new(sender: Sender<Notification>) -> Self {
+        let mut handlers: HashMap<String, Handler> = HashMap::new();
 
-        actions.insert(
+        handlers.insert(
             "http_pull_sync".to_string(),
             Box::new(|flow| http_pull_sync(flow)),
         );
-        actions.insert(
+        handlers.insert(
             "http_push_sync".to_string(),
             Box::new(|flow| http_push_sync(flow)),
         );
-        Self { actions }
+
+        handlers.insert(
+            "http_pull_async".to_string(),
+            Box::new(|flow| http_pull_async(flow)),
+        );
+
+        handlers.insert(
+            "http_push_async".to_string(),
+            Box::new(|flow| http_push_async(flow)),
+        );
+        Self { handlers, sender }
     }
 }
 
@@ -106,7 +175,8 @@ impl DataFlowHandler for TckTestHandler {
         tx: &mut Self::Transaction,
         flow: &DataFlow,
     ) -> HandlerResult<DataFlowStatusMessage> {
-        self.actions
+        self.fire_notification(flow).await;
+        self.handlers
             .get(&flow.transfer_type)
             .map(|action| action(flow))
             .ok_or_else(|| {
@@ -122,7 +192,8 @@ impl DataFlowHandler for TckTestHandler {
         tx: &mut Self::Transaction,
         flow: &DataFlow,
     ) -> HandlerResult<DataFlowStatusMessage> {
-        self.actions
+        self.fire_notification(flow).await;
+        self.handlers
             .get(&flow.transfer_type)
             .map(|action| action(flow))
             .ok_or_else(|| {
@@ -134,15 +205,54 @@ impl DataFlowHandler for TckTestHandler {
     }
 
     async fn on_terminate(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> HandlerResult<()> {
+        self.fire_notification(flow).await;
         Ok(())
     }
 
     async fn on_started(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> HandlerResult<()> {
+        self.fire_notification(flow).await;
         Ok(())
     }
 
     async fn on_suspend(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> HandlerResult<()> {
+        self.fire_notification(flow).await;
         Ok(())
+    }
+}
+
+fn matches_state(state: &str, expected: DataFlowState) -> bool {
+    match expected {
+        DataFlowState::Prepared => state == "prepared",
+        DataFlowState::Started => state == "started",
+        DataFlowState::Initiating => state == "initiating",
+        _ => false,
+    }
+}
+
+impl TckTestHandler {
+    async fn fire_notification(&self, flow: &DataFlow) {
+        let notification = flow.agreement_id.split("-").collect::<Vec<&str>>();
+        let kind = match notification.as_slice() {
+            [state, "completed"] if matches_state(state, flow.state.clone()) => {
+                NotificationKind::Completed
+            }
+            [state, "prepared"] if matches_state(state, flow.state.clone()) => {
+                NotificationKind::Prepared
+            }
+            [state, "started"] if matches_state(state, flow.state.clone()) => {
+                NotificationKind::Started
+            }
+            [state, "error"] if matches_state(state, flow.state.clone()) => {
+                NotificationKind::Errored("Simulated error".to_string())
+            }
+            _ => return, // No notification for other agreement IDs
+        };
+        let notification = Notification::builder()
+            .flow(flow.clone())
+            .kind(kind)
+            .build();
+
+        self.sender.send(notification).await.unwrap();
     }
 }
 
@@ -158,6 +268,30 @@ pub fn http_pull_sync(flow: &DataFlow) -> HandlerResult<DataFlowStatusMessage> {
             ),
             DataFlowState::Started,
         ),
+    };
+    Ok(DataFlowStatusMessage::builder()
+        .data_flow_id(flow.id.clone())
+        .maybe_data_address(data_address)
+        .state(state)
+        .build())
+}
+
+pub fn http_pull_async(flow: &DataFlow) -> HandlerResult<DataFlowStatusMessage> {
+    let (data_address, state) = match flow.kind {
+        DataFlowType::Consumer => (None, DataFlowState::Preparing),
+        DataFlowType::Provider => (None, DataFlowState::Starting),
+    };
+    Ok(DataFlowStatusMessage::builder()
+        .data_flow_id(flow.id.clone())
+        .maybe_data_address(data_address)
+        .state(state)
+        .build())
+}
+
+pub fn http_push_async(flow: &DataFlow) -> HandlerResult<DataFlowStatusMessage> {
+    let (data_address, state) = match flow.kind {
+        DataFlowType::Consumer => (None, DataFlowState::Preparing),
+        DataFlowType::Provider => (None, DataFlowState::Starting),
     };
     Ok(DataFlowStatusMessage::builder()
         .data_flow_id(flow.id.clone())

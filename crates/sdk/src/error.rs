@@ -25,4 +25,8 @@ pub enum SdkError {
     Repo(#[from] DbError),
     #[error("Transition error: {0}")]
     Transition(#[from] TransitionError),
+    #[error("Notification transport error: {0}")]
+    Notification(#[from] reqwest::Error),
+    #[error("Notification rejected with status {status}: {body}")]
+    NotificationStatus { status: u16, body: String },
 }

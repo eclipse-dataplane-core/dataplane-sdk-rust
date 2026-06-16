@@ -19,7 +19,8 @@ use crate::{
         error::{DbError, HandlerError},
         handler::DataFlowHandler,
         model::{
-            data_flow::{DataFlow, DataFlowState, DataFlowType},
+            data_address::DataAddress,
+            data_flow::{DataFlow, DataFlowState, DataFlowType, TransitionError},
             messages::{
                 DataFlowPrepareMessage, DataFlowResumeMessage, DataFlowStartMessage,
                 DataFlowStartedNotificationMessage, DataFlowStatusMessage,
@@ -37,6 +38,7 @@ where
     pub(crate) ctx: C,
     pub(crate) repo: Box<dyn DataFlowRepo<Transaction = C::Transaction>>,
     pub(crate) handler: Box<dyn DataFlowHandler<Transaction = C::Transaction>>,
+    pub(crate) client: reqwest::Client,
 }
 
 impl<C> DataPlaneSdkInternal<C>
@@ -277,6 +279,120 @@ where
             .data_flow_id(flow.id)
             .state(flow.state)
             .build())
+    }
+
+    /// Notifies the control plane that the data flow has been prepared, by
+    /// POSTing to the flow's `callback_address`. See the Data Plane Signalling
+    /// "Control Plane Endpoint" section.
+    pub async fn notify_prepared(
+        &self,
+        ctx: &str,
+        flow_id: &str,
+        data_address: Option<DataAddress>,
+    ) -> SdkResult<()> {
+        self.send_callback(
+            ctx,
+            flow_id,
+            "prepared",
+            data_address.clone(),
+            None,
+            move |flow| {
+                flow.data_address = data_address;
+                flow.transition_to_prepared()
+            },
+        )
+        .await
+    }
+
+    /// Notifies the control plane that the data flow has started.
+    pub async fn notify_started(
+        &self,
+        ctx: &str,
+        flow_id: &str,
+        data_address: Option<DataAddress>,
+    ) -> SdkResult<()> {
+        self.send_callback(
+            ctx,
+            flow_id,
+            "started",
+            data_address.clone(),
+            None,
+            |flow| {
+                flow.data_address = data_address;
+                flow.transition_to_started()
+            },
+        )
+        .await
+    }
+
+    /// Notifies the control plane that the data flow has completed.
+    pub async fn notify_completed(&self, ctx: &str, flow_id: &str) -> SdkResult<()> {
+        self.send_callback(ctx, flow_id, "completed", None, None, |flow| {
+            flow.transition_to_completed()
+        })
+        .await
+    }
+
+    /// Notifies the control plane that the data flow has errored. The optional
+    /// `error` is forwarded as the `error` field of the status message.
+    pub async fn notify_errored(
+        &self,
+        ctx: &str,
+        flow_id: &str,
+        error: Option<String>,
+    ) -> SdkResult<()> {
+        self.send_callback(ctx, flow_id, "errored", None, error.clone(), move |flow| {
+            flow.transition_to_terminated(error)
+        })
+        .await
+    }
+
+    async fn send_callback<CB>(
+        &self,
+        _ctx: &str,
+        flow_id: &str,
+        operation: &str,
+        data_address: Option<DataAddress>,
+        error: Option<String>,
+        op: CB,
+    ) -> SdkResult<()>
+    where
+        CB: FnOnce(&mut DataFlow) -> Result<(), TransitionError>,
+    {
+        let mut tx = self.ctx.begin().await?;
+
+        let mut flow = self
+            .fetch_by_id(&mut tx, flow_id)
+            .await?
+            .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
+
+        op(&mut flow)?;
+
+        let msg = DataFlowStatusMessage::builder()
+            .data_flow_id(flow.id.clone())
+            .maybe_data_address(data_address)
+            .state(flow.state.clone())
+            .maybe_error(error)
+            .build();
+
+        let url = format!(
+            "{}/transfers/{}/dataflow/{}",
+            flow.callback_address.trim_end_matches('/'),
+            flow.id,
+            operation
+        );
+
+        let resp = self.client.post(&url).json(&msg).send().await?;
+        if !resp.status().is_success() {
+            let status = resp.status().as_u16();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(SdkError::NotificationStatus { status, body });
+        }
+
+        self.repo.update(&mut tx, &flow).await?;
+        tx.commit().await?;
+
+        Ok(())
     }
 
     pub async fn fetch_by_id(

@@ -13,15 +13,17 @@ bon.workspace=true
 chrono.workspace=true
 thiserror.workspace=true
 async-trait.workspace=true
-uuid = { workspace=true, optional = true}
+uuid = { workspace=true }
+reqwest.workspace=true
 
 [features]
-test = ["dep:uuid"]
+test = []
 
 
 [dev-dependencies]
 mockall.workspace=true
 tokio.workspace=true
+wiremock = "0.6"
 
 [lints]
 workspace = true

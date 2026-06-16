@@ -1,4 +1,4 @@
-CREATE TYPE data_flow_state AS ENUM ('started','suspended','terminated','completed', 'initiating', 'initiated', 'preparing', 'prepared');
+CREATE TYPE data_flow_state AS ENUM ('starting','started','suspended','terminated','completed', 'initiating', 'initiated', 'preparing', 'prepared');
 CREATE TYPE data_flow_type AS ENUM ('consumer','provider');
 
 

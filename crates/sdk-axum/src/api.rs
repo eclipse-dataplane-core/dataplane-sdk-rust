@@ -13,11 +13,13 @@
 use axum::{
     Extension, Json,
     extract::{Path, State},
+    http::StatusCode,
 };
 use dataplane_sdk::{
     core::{
         db::tx::TransactionalContext,
         model::{
+            data_flow::DataFlowState,
             messages::{
                 DataFlowPrepareMessage, DataFlowResumeMessage, DataFlowStartMessage,
                 DataFlowStartedNotificationMessage, DataFlowStatusMessage,
@@ -48,12 +50,18 @@ pub async fn prepare_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
     Json(msg): Json<DataFlowPrepareMessage>,
-) -> SignalingResult<Json<DataFlowStatusMessage>>
+) -> SignalingResult<(StatusCode, Json<DataFlowStatusMessage>)>
 where
     C: TransactionalContext,
 {
     let response = sdk.prepare(&participant.id, msg).await?;
-    Ok(Json(response))
+
+    let status = match response.state {
+        DataFlowState::Preparing => StatusCode::OK,
+        _ => StatusCode::OK,
+    };
+
+    Ok((status, Json(response)))
 }
 
 #[derive(Deserialize)]

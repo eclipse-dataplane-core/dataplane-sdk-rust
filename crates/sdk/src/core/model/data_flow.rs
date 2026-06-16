@@ -108,7 +108,7 @@ impl DataFlow {
 
     pub fn transition_to_starting(&mut self) -> Result<(), TransitionError> {
         match self.state {
-            DataFlowState::Prepared => {
+            DataFlowState::Initiating | DataFlowState::Prepared => {
                 self.state = DataFlowState::Starting;
                 self.updated_at = chrono::Utc::now();
                 Ok(())

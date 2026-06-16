@@ -841,6 +841,181 @@ mod status {
     }
 }
 
+mod notify {
+    use std::future;
+
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{body_string_contains, method, path},
+    };
+
+    use crate::{
+        core::{
+            db::tx::{MockTransaction, MockTransactionalContext},
+            error::DbError,
+            model::data_flow::{DataFlow, DataFlowState},
+        },
+        error::SdkError,
+        sdk::DataPlaneSdk,
+        sdk_test::{context, flow},
+    };
+
+    fn flow_with(callback: &str, state: DataFlowState) -> DataFlow {
+        let mut f = flow();
+        f.callback_address = callback.to_string();
+        f.state = state;
+        f
+    }
+
+    /// Configures the mock context so that `begin`/`commit` succeed and
+    /// `fetch_by_id` returns the supplied flow.
+    fn with_flow(f: DataFlow) -> DataPlaneSdk<MockTransactionalContext> {
+        let (mut ctx, mut repo, handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(move |_, _| Box::pin(future::ready(Ok(Some(f.clone())))));
+
+        repo.expect_update()
+            .returning(|_, _| Box::pin(future::ready(Ok(()))));
+
+        DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn notify_started_posts_to_callback() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/transfers/flow-id/dataflow/started"))
+            .and(body_string_contains("\"state\":\"STARTED\""))
+            .and(body_string_contains("\"dataFlowId\":\"flow-id\""))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Started));
+
+        let response = sdk.notify_started("participant", "flow-id", None).await;
+
+        assert!(response.is_ok());
+    }
+
+    #[tokio::test]
+    async fn notify_prepared_posts_to_callback() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/transfers/flow-id/dataflow/prepared"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Prepared));
+
+        assert!(
+            sdk.notify_prepared("participant", "flow-id", None)
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn notify_completed_posts_to_callback() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/transfers/flow-id/dataflow/completed"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Completed));
+
+        assert!(sdk.notify_completed("participant", "flow-id").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn notify_errored_forwards_error() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/transfers/flow-id/dataflow/errored"))
+            .and(body_string_contains("something broke"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Started));
+
+        let response = sdk
+            .notify_errored(
+                "participant",
+                "flow-id",
+                Some("something broke".to_string()),
+            )
+            .await;
+
+        assert!(response.is_ok());
+    }
+
+    #[tokio::test]
+    async fn notify_non_success_status_is_error() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
+            .mount(&server)
+            .await;
+
+        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Started));
+
+        let response = sdk.notify_started("participant", "flow-id", None).await;
+
+        assert!(matches!(
+            response,
+            Err(SdkError::NotificationStatus { status: 500, .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn notify_not_found() {
+        let (mut ctx, mut repo, handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id()
+            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+
+        let sdk = DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_handler(handler)
+            .build()
+            .unwrap();
+
+        let response = sdk.notify_started("participant", "flow-id", None).await;
+
+        assert!(matches!(
+            response,
+            Err(SdkError::Repo(DbError::NotFound(_)))
+        ));
+    }
+}
+
 fn start_message() -> DataFlowStartMessage {
     DataFlowStartMessage::builder()
         .process_id("process-id")
