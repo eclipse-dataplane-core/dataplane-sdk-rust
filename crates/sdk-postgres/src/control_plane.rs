@@ -10,10 +10,7 @@
 //         Metaform Systems, Inc. - initial API and implementation
 //
 
-mod control_plane;
-mod data_flow;
-mod tx;
+mod model;
+mod repo;
 
-pub use control_plane::PgControlPlaneRepo;
-pub use data_flow::PgDataFlowRepo;
-pub use tx::{PgContext, PgTransaction};
+pub use repo::PgControlPlaneRepo;

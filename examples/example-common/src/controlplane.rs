@@ -17,6 +17,11 @@ use dataplane_sdk::core::model::{
 };
 use uuid::Uuid;
 
+/// Well-known id of the control plane the data plane associates flows with. The
+/// data plane seeds a matching `ControlPlane` record and layers it as an Axum
+/// extension (see the launcher); the id is not carried on the wire messages.
+pub const CONTROL_PLANE_ID: &str = "control-plane-simulator";
+
 #[derive(Builder)]
 #[builder(on(String, into))]
 pub struct ControlPlaneSimulator {
@@ -44,11 +49,10 @@ impl ControlPlaneSimulator {
             .process_id(req.process_id)
             .agreement_id(req.agreement_id)
             .maybe_data_address(req.data_address)
-            .callback_address(format!("{}/callback", self.provider))
             .participant_id("control-plane-simulator")
             .counter_party_id("counter-party")
             .dataspace_context("example-dataspace")
-            .transfer_type("example-transfer-type")
+            .profile("example-transfer-type")
             .message_id(Uuid::new_v4().to_string())
             .build();
 
@@ -75,11 +79,10 @@ impl ControlPlaneSimulator {
             .process_id(req.process_id)
             .agreement_id(req.agreement_id)
             .maybe_data_address(req.data_address)
-            .callback_address(format!("{}/callback", self.consumer))
             .participant_id("control-plane-simulator")
             .counter_party_id("counter-party")
             .dataspace_context("example-dataspace")
-            .transfer_type("example-transfer-type")
+            .profile("example-transfer-type")
             .message_id(Uuid::new_v4().to_string())
             .build();
 
@@ -132,11 +135,10 @@ impl ControlPlaneSimulator {
             .process_id(req.process_id)
             .agreement_id(req.agreement_id)
             .maybe_data_address(req.data_address)
-            .callback_address(format!("{}/callback", base_url))
             .participant_id("control-plane-simulator")
             .counter_party_id("counter-party")
             .dataspace_context("example-dataspace")
-            .transfer_type("example-transfer-type")
+            .profile("example-transfer-type")
             .message_id(Uuid::new_v4().to_string())
             .build();
 

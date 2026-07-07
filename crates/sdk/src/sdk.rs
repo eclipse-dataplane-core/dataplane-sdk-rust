@@ -12,7 +12,7 @@
 use std::{ops::Deref, sync::Arc};
 
 use crate::core::{
-    db::{data_flow::DataFlowRepo, tx::TransactionalContext},
+    db::{control_plane::ControlPlaneRepo, data_flow::DataFlowRepo, tx::TransactionalContext},
     handler::DataFlowHandler,
 };
 
@@ -40,12 +40,14 @@ where
     pub(crate) fn new(
         ctx: C,
         repo: Box<dyn DataFlowRepo<Transaction = C::Transaction>>,
+        control_plane_repo: Box<dyn ControlPlaneRepo<Transaction = C::Transaction>>,
         handler: Box<dyn DataFlowHandler<Transaction = C::Transaction>>,
         client: reqwest::Client,
     ) -> Self {
         Self(Arc::new(internal::DataPlaneSdkInternal {
             ctx,
             repo,
+            control_plane_repo,
             handler,
             client,
         }))
@@ -69,6 +71,7 @@ where
 {
     ctx: C,
     repo: Option<Box<dyn DataFlowRepo<Transaction = C::Transaction>>>,
+    control_plane_repo: Option<Box<dyn ControlPlaneRepo<Transaction = C::Transaction>>>,
     handler: Option<Box<dyn DataFlowHandler<Transaction = C::Transaction>>>,
     client: Option<reqwest::Client>,
 }
@@ -81,6 +84,7 @@ where
         Self {
             ctx,
             repo: None,
+            control_plane_repo: None,
             handler: None,
             client: None,
         }
@@ -91,6 +95,14 @@ where
         repo: impl DataFlowRepo<Transaction = C::Transaction> + 'static,
     ) -> Self {
         self.repo = Some(Box::new(repo));
+        self
+    }
+
+    pub fn with_control_plane_repo(
+        mut self,
+        control_plane_repo: impl ControlPlaneRepo<Transaction = C::Transaction> + 'static,
+    ) -> Self {
+        self.control_plane_repo = Some(Box::new(control_plane_repo));
         self
     }
 
@@ -112,10 +124,20 @@ where
     pub fn build(self) -> Result<DataPlaneSdk<C>, String> {
         let repo = self.repo.ok_or("DataFlowRepo is not set")?;
 
+        let control_plane_repo = self
+            .control_plane_repo
+            .ok_or("ControlPlaneRepo is not set")?;
+
         let handler = self.handler.ok_or("DataFlowHandler is not set")?;
 
         let client = self.client.unwrap_or_default();
 
-        Ok(DataPlaneSdk::new(self.ctx, repo, handler, client))
+        Ok(DataPlaneSdk::new(
+            self.ctx,
+            repo,
+            control_plane_repo,
+            handler,
+            client,
+        ))
     }
 }

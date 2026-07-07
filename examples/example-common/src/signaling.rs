@@ -14,7 +14,10 @@ use std::{net::SocketAddr, str::FromStr, sync::Arc};
 
 use axum::Extension;
 use dataplane_sdk::{
-    core::{db::tx::TransactionalContext, model::participant::ParticipantContext},
+    core::{
+        db::tx::TransactionalContext,
+        model::{control_plane::ControlPlane, participant::ParticipantContext},
+    },
     sdk::DataPlaneSdk,
 };
 use dataplane_sdk_axum::router::router;
@@ -22,8 +25,12 @@ use tokio::sync::Barrier;
 
 use crate::util::launch_server;
 
-pub async fn start_signaling<C>(port: u16, sdk: DataPlaneSdk<C>, barrier: Arc<Barrier>)
-where
+pub async fn start_signaling<C>(
+    port: u16,
+    sdk: DataPlaneSdk<C>,
+    control_plane: ControlPlane,
+    barrier: Arc<Barrier>,
+) where
     C: TransactionalContext + 'static,
     C::Transaction: Send,
 {
@@ -32,7 +39,9 @@ where
     let p_context = ParticipantContext::builder()
         .id("example-participant")
         .build();
-    let router = router().layer(Extension(p_context));
+    let router = router()
+        .layer(Extension(p_context))
+        .layer(Extension(control_plane));
 
     launch_server("Signaling API", router, sdk.clone(), addr, barrier).await;
 }

@@ -86,11 +86,11 @@ mod tck_tests {
             .with(env_filter())
             .with(tracing_subscriber::fmt::layer())
             .init();
-        let (ctx, repo, _container) = util::setup_postgres_container().await;
+        let (ctx, repo, control_plane_repo, _container) = util::setup_postgres_container().await;
 
         let (tx, rx) = tokio::sync::mpsc::channel(100);
 
-        let sdk = util::sdk(ctx, repo, TckTestHandler::new(tx)).await;
+        let sdk = util::sdk(ctx, repo, control_plane_repo, TckTestHandler::new(tx)).await;
 
         handle_notifications(sdk.clone(), rx);
 
@@ -177,12 +177,12 @@ impl DataFlowHandler for TckTestHandler {
     ) -> HandlerResult<DataFlowStatusMessage> {
         self.fire_notification(flow).await;
         self.handlers
-            .get(&flow.transfer_type)
+            .get(&flow.profile)
             .map(|action| action(flow))
             .ok_or_else(|| {
                 HandlerError::NotSupported(format!(
-                    "No action defined for transfer type: {}",
-                    flow.transfer_type
+                    "No action defined for profile: {}",
+                    flow.profile
                 ))
             })?
     }
@@ -194,12 +194,12 @@ impl DataFlowHandler for TckTestHandler {
     ) -> HandlerResult<DataFlowStatusMessage> {
         self.fire_notification(flow).await;
         self.handlers
-            .get(&flow.transfer_type)
+            .get(&flow.profile)
             .map(|action| action(flow))
             .ok_or_else(|| {
                 HandlerError::NotSupported(format!(
-                    "No action defined for transfer type: {}",
-                    flow.transfer_type
+                    "No action defined for profile: {}",
+                    flow.profile
                 ))
             })?
     }

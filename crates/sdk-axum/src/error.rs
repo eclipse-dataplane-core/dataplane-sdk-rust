@@ -43,6 +43,7 @@ impl IntoResponse for SignalingError {
                 (StatusCode::CONFLICT, err.to_string())
             }
             SignalingError::Sdk(e) => {
+                dbg!(&e);
                 error!("SDK error: {:#}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, "SDK error".to_owned())
             }

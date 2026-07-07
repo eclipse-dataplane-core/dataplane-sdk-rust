@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS control_planes (
+    id TEXT PRIMARY KEY,
+    url TEXT NOT NULL
+)

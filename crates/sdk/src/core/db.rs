@@ -10,6 +10,7 @@
 //         Metaform Systems, Inc. - initial API and implementation
 //
 
+pub mod control_plane;
 pub mod data_flow;
 pub mod memory;
 pub mod tx;

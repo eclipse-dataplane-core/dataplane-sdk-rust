@@ -19,6 +19,7 @@ use dataplane_sdk::{
     core::{
         db::tx::TransactionalContext,
         model::{
+            control_plane::ControlPlane,
             data_flow::DataFlowState,
             messages::{
                 DataFlowPrepareMessage, DataFlowResumeMessage, DataFlowStartMessage,
@@ -37,24 +38,26 @@ use crate::error::SignalingResult;
 pub async fn start_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
+    Extension(control_plane): Extension<ControlPlane>,
     Json(msg): Json<DataFlowStartMessage>,
 ) -> SignalingResult<Json<DataFlowStatusMessage>>
 where
     C: TransactionalContext,
 {
-    let response = sdk.start(&participant.id, msg).await?;
+    let response = sdk.start(&participant.id, &control_plane.id, msg).await?;
     Ok(Json(response))
 }
 
 pub async fn prepare_flow<C>(
     State(sdk): State<DataPlaneSdk<C>>,
     Extension(participant): Extension<ParticipantContext>,
+    Extension(control_plane): Extension<ControlPlane>,
     Json(msg): Json<DataFlowPrepareMessage>,
 ) -> SignalingResult<(StatusCode, Json<DataFlowStatusMessage>)>
 where
     C: TransactionalContext,
 {
-    let response = sdk.prepare(&participant.id, msg).await?;
+    let response = sdk.prepare(&participant.id, &control_plane.id, msg).await?;
 
     let status = match response.state {
         DataFlowState::Preparing => StatusCode::OK,
