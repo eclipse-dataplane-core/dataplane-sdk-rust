@@ -21,16 +21,26 @@ use axum::{Extension, Router};
 use dataplane_sdk::{
     core::{
         db::{
+            control_plane::ControlPlaneRepo,
             data_flow::DataFlowRepo,
             tx::{Transaction, TransactionalContext},
         },
         handler::DataFlowHandler,
-        model::participant::ParticipantContext,
+        model::{control_plane::ControlPlane, participant::ParticipantContext},
     },
     sdk::DataPlaneSdk,
 };
 use dataplane_sdk_axum::router::router;
-use dataplane_sdk_postgres::{PgContext, PgDataFlowRepo};
+use dataplane_sdk_postgres::{PgContext, PgControlPlaneRepo, PgDataFlowRepo};
+
+/// Well-known id of the control plane the TCK references in its start/prepare
+/// messages via `controlPlaneId`. The data plane seeds a matching `ControlPlane`
+/// record whose URL is where control-plane notification callbacks are sent.
+///
+/// NOTE: the id and URL below must match what the `dps-tck` runtime sends and
+/// expects; align these with the TCK image before relying on the callback flow.
+pub const CONTROL_PLANE_ID: &str = "tck-control-plane";
+pub const CONTROL_PLANE_URL: &str = "http://localhost:8083";
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use regex::Regex;
@@ -46,6 +56,7 @@ use tracing::{Level, info};
 pub async fn setup_postgres_container() -> (
     PgContext,
     PgDataFlowRepo,
+    PgControlPlaneRepo,
     testcontainers::ContainerAsync<Postgres>,
 ) {
     let container = Postgres::default().start().await.unwrap();
@@ -67,27 +78,29 @@ pub async fn setup_postgres_container() -> (
     .await
     .unwrap_or_else(|_| panic!("PostgreSQL launch failed"));
 
-    (ctx.0, ctx.1, container)
+    (ctx.0, ctx.1, ctx.2, container)
 }
 
-async fn setup_pg(url: &str) -> anyhow::Result<(PgContext, PgDataFlowRepo)> {
+async fn setup_pg(url: &str) -> anyhow::Result<(PgContext, PgDataFlowRepo, PgControlPlaneRepo)> {
     let ctx = PgContext::connect(url).await?;
 
     let mut tx = ctx.begin().await?;
     let repo = PgDataFlowRepo;
+    let control_plane_repo = PgControlPlaneRepo;
 
     repo.migrate(&mut tx).await?;
+    control_plane_repo.migrate(&mut tx).await?;
 
     tx.commit().await?;
 
-    Ok((ctx, repo))
+    Ok((ctx, repo, control_plane_repo))
 }
 
 pub async fn setup_tck_container(
     reporter: TckTestReporter,
 ) -> testcontainers::ContainerAsync<GenericImage> {
     let path = Path::new("tests/dps.tck.properties");
-    GenericImage::new("eclipsedataspacetck/dps-tck-runtime", "1.1.2")
+    GenericImage::new("eclipsedataspacetck/dps-tck-runtime", "1.2.0")
         .with_exposed_port(8083.tcp())
         .with_wait_for(WaitFor::message_on_stdout("Test run complete"))
         .with_mapped_port(8083, ContainerPort::Tcp(8083))
@@ -110,7 +123,13 @@ where
     let addr = SocketAddr::from_str(&format!("0.0.0.0:{port}")).expect("Invalid socket address");
 
     let p_context = ParticipantContext::builder().id("tck-participant").build();
-    let router = router().layer(Extension(p_context));
+    let control_plane = ControlPlane::builder()
+        .id(CONTROL_PLANE_ID)
+        .url(CONTROL_PLANE_URL)
+        .build();
+    let router = router()
+        .layer(Extension(p_context))
+        .layer(Extension(control_plane));
 
     launch_server("Signaling API", router, sdk.clone(), addr).await;
 }
@@ -182,15 +201,33 @@ pub async fn wait_for_server(socket: std::net::SocketAddr) {
     }
 }
 
-pub async fn sdk<C, R, H>(ctx: C, repo: R, handler: H) -> DataPlaneSdk<C>
+pub async fn sdk<C, R, CP, H>(
+    ctx: C,
+    repo: R,
+    control_plane_repo: CP,
+    handler: H,
+) -> DataPlaneSdk<C>
 where
     C: TransactionalContext + 'static,
     C::Transaction: Send,
     R: DataFlowRepo<Transaction = C::Transaction> + 'static,
+    CP: ControlPlaneRepo<Transaction = C::Transaction> + 'static,
     H: DataFlowHandler<Transaction = C::Transaction> + 'static,
 {
+    let control_plane = ControlPlane::builder()
+        .id(CONTROL_PLANE_ID)
+        .url(CONTROL_PLANE_URL)
+        .build();
+    let mut tx = ctx.begin().await.expect("Failed to begin transaction");
+    control_plane_repo
+        .create(&mut tx, &control_plane)
+        .await
+        .expect("Failed to seed control plane");
+    tx.commit().await.expect("Failed to commit control plane");
+
     DataPlaneSdk::builder(ctx)
         .with_repo(repo)
+        .with_control_plane_repo(control_plane_repo)
         .with_handler(handler)
         .build()
         .unwrap()

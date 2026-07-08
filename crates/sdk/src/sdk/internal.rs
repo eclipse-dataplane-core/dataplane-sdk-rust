@@ -13,6 +13,7 @@
 use crate::{
     core::{
         db::{
+            control_plane::ControlPlaneRepo,
             data_flow::DataFlowRepo,
             tx::{Transaction, TransactionalContext},
         },
@@ -37,6 +38,7 @@ where
 {
     pub(crate) ctx: C,
     pub(crate) repo: Box<dyn DataFlowRepo<Transaction = C::Transaction>>,
+    pub(crate) control_plane_repo: Box<dyn ControlPlaneRepo<Transaction = C::Transaction>>,
     pub(crate) handler: Box<dyn DataFlowHandler<Transaction = C::Transaction>>,
     pub(crate) client: reqwest::Client,
 }
@@ -48,6 +50,7 @@ where
     pub async fn start(
         &self,
         participant_context_id: &str,
+        control_plane_id: &str,
         req: DataFlowStartMessage,
     ) -> SdkResult<DataFlowStatusMessage> {
         let mut flow = DataFlow::builder()
@@ -61,9 +64,9 @@ where
             .dataspace_context(req.dataspace_context)
             .dataset_id(req.dataset_id)
             .agreement_id(req.agreement_id)
-            .callback_address(req.callback_address)
+            .control_plane_id(control_plane_id)
             .labels(req.labels)
-            .transfer_type(req.transfer_type)
+            .profile(req.profile)
             .kind(DataFlowType::Provider)
             .build();
 
@@ -95,6 +98,7 @@ where
     pub async fn prepare(
         &self,
         participant_context_id: &str,
+        control_plane_id: &str,
         req: DataFlowPrepareMessage,
     ) -> SdkResult<DataFlowStatusMessage> {
         let mut flow = DataFlow::builder()
@@ -107,9 +111,9 @@ where
             .dataspace_context(req.dataspace_context)
             .dataset_id(req.dataset_id)
             .agreement_id(req.agreement_id)
-            .callback_address(req.callback_address)
+            .control_plane_id(control_plane_id)
             .labels(req.labels)
-            .transfer_type(req.transfer_type)
+            .profile(req.profile)
             .kind(DataFlowType::Consumer)
             .build();
 
@@ -282,8 +286,9 @@ where
     }
 
     /// Notifies the control plane that the data flow has been prepared, by
-    /// POSTing to the flow's `callback_address`. See the Data Plane Signalling
-    /// "Control Plane Endpoint" section.
+    /// POSTing to the URL of the flow's referenced control plane (resolved from
+    /// `control_plane_id`). See the Data Plane Signalling "Control Plane
+    /// Endpoint" section.
     pub async fn notify_prepared(
         &self,
         ctx: &str,
@@ -366,6 +371,12 @@ where
             .await?
             .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
 
+        let control_plane = self
+            .control_plane_repo
+            .fetch_by_id(&mut tx, &flow.control_plane_id)
+            .await?
+            .ok_or_else(|| DbError::NotFound(flow.control_plane_id.clone()))?;
+
         op(&mut flow)?;
 
         let msg = DataFlowStatusMessage::builder()
@@ -377,7 +388,7 @@ where
 
         let url = format!(
             "{}/transfers/{}/dataflow/{}",
-            flow.callback_address.trim_end_matches('/'),
+            control_plane.url.trim_end_matches('/'),
             flow.id,
             operation
         );

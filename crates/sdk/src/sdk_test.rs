@@ -62,11 +62,15 @@ mod prepare {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.prepare("participant", prepare_message()).await.unwrap();
+        let response = sdk
+            .prepare("participant", "control-plane", prepare_message())
+            .await
+            .unwrap();
 
         assert!(response.data_address.is_none());
     }
@@ -87,11 +91,14 @@ mod prepare {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.prepare("participant", prepare_message()).await;
+        let response = sdk
+            .prepare("participant", "control-plane", prepare_message())
+            .await;
 
         assert!(matches!(response, Err(SdkError::Repo(DbError::Generic(_)))));
     }
@@ -122,11 +129,14 @@ mod prepare {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.prepare("participant", prepare_message()).await;
+        let response = sdk
+            .prepare("participant", "control-plane", prepare_message())
+            .await;
 
         assert!(matches!(
             response,
@@ -160,11 +170,14 @@ mod prepare {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.prepare("participant", prepare_message()).await;
+        let response = sdk
+            .prepare("participant", "control-plane", prepare_message())
+            .await;
 
         assert!(matches!(
             response,
@@ -182,11 +195,14 @@ mod prepare {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.prepare("participant", prepare_message()).await;
+        let response = sdk
+            .prepare("participant", "control-plane", prepare_message())
+            .await;
 
         assert!(matches!(
             response,
@@ -237,11 +253,15 @@ mod start {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.start("participant", start_message()).await.unwrap();
+        let response = sdk
+            .start("participant", "control-plane", start_message())
+            .await
+            .unwrap();
 
         assert!(response.data_address.is_none());
     }
@@ -262,11 +282,14 @@ mod start {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.start("participant", start_message()).await;
+        let response = sdk
+            .start("participant", "control-plane", start_message())
+            .await;
 
         assert!(matches!(response, Err(SdkError::Repo(DbError::Generic(_)))));
     }
@@ -297,11 +320,14 @@ mod start {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.start("participant", start_message()).await;
+        let response = sdk
+            .start("participant", "control-plane", start_message())
+            .await;
 
         assert!(matches!(
             response,
@@ -335,11 +361,14 @@ mod start {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.start("participant", start_message()).await;
+        let response = sdk
+            .start("participant", "control-plane", start_message())
+            .await;
 
         assert!(matches!(
             response,
@@ -357,11 +386,14 @@ mod start {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
 
-        let response = sdk.start("participant", start_message()).await;
+        let response = sdk
+            .start("participant", "control-plane", start_message())
+            .await;
 
         assert!(matches!(
             response,
@@ -406,6 +438,7 @@ mod terminate {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -437,6 +470,7 @@ mod terminate {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -486,6 +520,7 @@ mod suspend {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -517,6 +552,7 @@ mod suspend {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -569,6 +605,7 @@ mod started {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -598,6 +635,7 @@ mod started {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -645,6 +683,7 @@ mod completed {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -672,6 +711,7 @@ mod completed {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -734,6 +774,7 @@ mod resume {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -764,6 +805,7 @@ mod resume {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -802,6 +844,7 @@ mod status {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -828,6 +871,7 @@ mod status {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -851,26 +895,33 @@ mod notify {
 
     use crate::{
         core::{
-            db::tx::{MockTransaction, MockTransactionalContext},
+            db::{
+                control_plane::MockControlPlaneRepo,
+                tx::{MockTransaction, MockTransactionalContext},
+            },
             error::DbError,
-            model::data_flow::{DataFlow, DataFlowState},
+            model::{
+                control_plane::ControlPlane,
+                data_flow::{DataFlow, DataFlowState},
+            },
         },
         error::SdkError,
         sdk::DataPlaneSdk,
         sdk_test::{context, flow},
     };
 
-    fn flow_with(callback: &str, state: DataFlowState) -> DataFlow {
+    fn flow_with(state: DataFlowState) -> DataFlow {
         let mut f = flow();
-        f.callback_address = callback.to_string();
         f.state = state;
         f
     }
 
-    /// Configures the mock context so that `begin`/`commit` succeed and
-    /// `fetch_by_id` returns the supplied flow.
-    fn with_flow(f: DataFlow) -> DataPlaneSdk<MockTransactionalContext> {
+    /// Configures the mock context so that `begin`/`commit` succeed,
+    /// `fetch_by_id` returns the supplied flow, and the referenced control
+    /// plane resolves to `url` (the mock notification server).
+    fn with_flow(f: DataFlow, url: &str) -> DataPlaneSdk<MockTransactionalContext> {
         let (mut ctx, mut repo, handler) = context();
+        let mut cp_repo = MockControlPlaneRepo::new();
 
         ctx.expect_begin().returning(|| {
             let mut tx = MockTransaction::new();
@@ -879,14 +930,25 @@ mod notify {
             Box::pin(future::ready(Ok(tx)))
         });
 
+        let control_plane_id = f.control_plane_id.clone();
         repo.expect_fetch_by_id()
             .returning(move |_, _| Box::pin(future::ready(Ok(Some(f.clone())))));
 
         repo.expect_update()
             .returning(|_, _| Box::pin(future::ready(Ok(()))));
 
+        let url = url.to_string();
+        cp_repo.expect_fetch_by_id().returning(move |_, _| {
+            let cp = ControlPlane::builder()
+                .id(control_plane_id.clone())
+                .url(url.clone())
+                .build();
+            Box::pin(future::ready(Ok(Some(cp))))
+        });
+
         DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(cp_repo)
             .with_handler(handler)
             .build()
             .unwrap()
@@ -904,7 +966,7 @@ mod notify {
             .mount(&server)
             .await;
 
-        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Started));
+        let sdk = with_flow(flow_with(DataFlowState::Started), &server.uri());
 
         let response = sdk.notify_started("participant", "flow-id", None).await;
 
@@ -921,7 +983,7 @@ mod notify {
             .mount(&server)
             .await;
 
-        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Prepared));
+        let sdk = with_flow(flow_with(DataFlowState::Prepared), &server.uri());
 
         assert!(
             sdk.notify_prepared("participant", "flow-id", None)
@@ -940,7 +1002,7 @@ mod notify {
             .mount(&server)
             .await;
 
-        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Completed));
+        let sdk = with_flow(flow_with(DataFlowState::Completed), &server.uri());
 
         assert!(sdk.notify_completed("participant", "flow-id").await.is_ok());
     }
@@ -956,7 +1018,7 @@ mod notify {
             .mount(&server)
             .await;
 
-        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Started));
+        let sdk = with_flow(flow_with(DataFlowState::Started), &server.uri());
 
         let response = sdk
             .notify_errored(
@@ -977,7 +1039,7 @@ mod notify {
             .mount(&server)
             .await;
 
-        let sdk = with_flow(flow_with(&server.uri(), DataFlowState::Started));
+        let sdk = with_flow(flow_with(DataFlowState::Started), &server.uri());
 
         let response = sdk.notify_started("participant", "flow-id", None).await;
 
@@ -1003,6 +1065,7 @@ mod notify {
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
+            .with_control_plane_repo(crate::core::db::control_plane::MockControlPlaneRepo::new())
             .with_handler(handler)
             .build()
             .unwrap();
@@ -1028,8 +1091,7 @@ fn start_message() -> DataFlowStartMessage {
                 .build(),
         )
         .agreement_id("agreement")
-        .callback_address("callback")
-        .transfer_type("transfer-type")
+        .profile("transfer-type")
         .counter_party_id("counter-party")
         .dataspace_context("dataspace-context")
         .message_id("message-id")
@@ -1042,8 +1104,7 @@ fn prepare_message() -> DataFlowPrepareMessage {
         .participant_id("counter-party")
         .dataset_id("dataset")
         .agreement_id("agreement")
-        .callback_address("callback")
-        .transfer_type("transfer-type")
+        .profile("transfer-type")
         .counter_party_id("counter-party")
         .dataspace_context("dataspace-context")
         .message_id("message-id")
@@ -1064,8 +1125,8 @@ fn flow() -> DataFlow {
         )
         .dataset_id("dataset")
         .agreement_id("agreement")
-        .callback_address("callback")
-        .transfer_type("transfer-type")
+        .control_plane_id("control-plane")
+        .profile("transfer-type")
         .dataspace_context("dataspace-context")
         .labels(vec![])
         .participant_id("participant")

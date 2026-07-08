@@ -29,8 +29,7 @@ pub struct DataFlowStartMessage {
     pub process_id: String,
     pub agreement_id: String,
     pub dataset_id: String,
-    pub callback_address: String,
-    pub transfer_type: String,
+    pub profile: String,
     pub data_address: Option<DataAddress>,
     #[builder(default)]
     #[serde(default)]
@@ -58,8 +57,7 @@ pub struct DataFlowPrepareMessage {
     pub process_id: String,
     pub agreement_id: String,
     pub dataset_id: String,
-    pub callback_address: String,
-    pub transfer_type: String,
+    pub profile: String,
     #[builder(default)]
     #[serde(default)]
     pub labels: Vec<String>,

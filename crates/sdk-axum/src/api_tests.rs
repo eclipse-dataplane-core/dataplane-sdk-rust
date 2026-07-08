@@ -19,12 +19,13 @@ use dataplane_sdk::sdk;
 use dataplane_sdk::{
     core::{
         db::{
+            control_plane::ControlPlaneRepo,
             data_flow::DataFlowRepo,
             tx::{Transaction, TransactionalContext},
         },
         error::DbResult,
         handler::DataFlowHandler,
-        model::data_flow::DataFlow,
+        model::{control_plane::ControlPlane, data_flow::DataFlow},
     },
     sdk::DataPlaneSdk,
 };
@@ -76,6 +77,21 @@ mock! {
 }
 
 mock! {
+    ControlPlaneRepo{}
+
+    #[async_trait]
+    impl ControlPlaneRepo for ControlPlaneRepo {
+        type Transaction = MockTx;
+        async fn create(&self, tx: &mut MockTx, control_plane: &ControlPlane) -> DbResult<()>;
+        async fn fetch_by_id(
+            &self,
+            tx: &mut MockTx,
+            control_plane_id: &str,
+        ) -> DbResult<Option<ControlPlane>>;
+    }
+}
+
+mock! {
     Handler {}
 
     #[async_trait]
@@ -123,13 +139,22 @@ struct TestCtx {
     base_url: String,
     app: Router<DataPlaneSdk<MockTxContext>>,
     participant_context: ParticipantContext,
+    control_plane: ControlPlane,
 }
 
 impl TestCtx {
     pub fn app(&self, sdk: DataPlaneSdk<MockTxContext>) -> Router {
         let app = self.app.clone().with_state(sdk);
         app.layer(axum::Extension(self.participant_context.clone()))
+            .layer(axum::Extension(self.control_plane.clone()))
     }
+}
+
+fn control_plane() -> ControlPlane {
+    ControlPlane::builder()
+        .id("control_plane_id")
+        .url("http://localhost/callback")
+        .build()
 }
 
 fn single_ctx() -> TestCtx {
@@ -139,6 +164,7 @@ fn single_ctx() -> TestCtx {
         participant_context: ParticipantContext::builder()
             .id("example-participant")
             .build(),
+        control_plane: control_plane(),
     }
 }
 
@@ -149,6 +175,7 @@ fn multi_participant_ctx() -> TestCtx {
         participant_context: ParticipantContext::builder()
             .id("example-participant")
             .build(),
+        control_plane: control_plane(),
     }
 }
 
@@ -159,6 +186,7 @@ fn context() -> (MockTxContext, MockRepo, MockHandler) {
 fn sdk(ctx: MockTxContext, repo: MockRepo, handler: MockHandler) -> DataPlaneSdk<MockTxContext> {
     DataPlaneSdk::builder(ctx)
         .with_repo(repo)
+        .with_control_plane_repo(MockControlPlaneRepo::new())
         .with_handler(handler)
         .build()
         .unwrap()
@@ -216,9 +244,8 @@ mod start {
                     .build(),
             )
             .agreement_id("agreement_id")
-            .transfer_type("transfer_type")
+            .profile("transfer_type")
             .dataspace_context("dataspace_context")
-            .callback_address("callback_address")
             .message_id("message_id")
             .counter_party_id("counter_party_id")
             .build();
@@ -284,8 +311,8 @@ mod terminate {
                     .agreement_id("agreement_id")
                     .dataspace_context("dataspace_context")
                     .participant_id("participant_id")
-                    .callback_address("callback_address")
-                    .transfer_type("transfer_type")
+                    .control_plane_id("control_plane_id")
+                    .profile("transfer_type")
                     .kind(DataFlowType::Provider)
                     .build(),
             ))
@@ -365,8 +392,8 @@ mod suspend {
                     .agreement_id("agreement_id")
                     .dataspace_context("dataspace_context")
                     .participant_id("participant_id")
-                    .callback_address("callback_address")
-                    .transfer_type("transfer_type")
+                    .control_plane_id("control_plane_id")
+                    .profile("transfer_type")
                     .kind(DataFlowType::Provider)
                     .build(),
             ))
@@ -451,9 +478,8 @@ mod prepare {
             .participant_id("counter_party_id")
             .process_id("process_id")
             .agreement_id("agreement_id")
-            .transfer_type("transfer_type")
+            .profile("transfer_type")
             .dataspace_context("dataspace_context")
-            .callback_address("callback_address")
             .message_id("message_id")
             .counter_party_id("counter_party_id")
             .build();
@@ -523,8 +549,8 @@ mod started {
                     .agreement_id("agreement_id")
                     .dataspace_context("dataspace_context")
                     .participant_id("participant_id")
-                    .callback_address("callback_address")
-                    .transfer_type("transfer_type")
+                    .control_plane_id("control_plane_id")
+                    .profile("transfer_type")
                     .kind(DataFlowType::Provider)
                     .build(),
             ))
@@ -593,8 +619,8 @@ mod completed {
                     .agreement_id("agreement_id")
                     .dataspace_context("dataspace_context")
                     .participant_id("participant_id")
-                    .callback_address("callback_address")
-                    .transfer_type("transfer_type")
+                    .control_plane_id("control_plane_id")
+                    .profile("transfer_type")
                     .kind(DataFlowType::Provider)
                     .build(),
             ))
@@ -661,8 +687,8 @@ mod flow_status {
                     .agreement_id("agreement_id")
                     .dataspace_context("dataspace_context")
                     .participant_id("participant_id")
-                    .callback_address("callback_address")
-                    .transfer_type("transfer_type")
+                    .control_plane_id("control_plane_id")
+                    .profile("transfer_type")
                     .kind(DataFlowType::Provider)
                     .build(),
             ))
@@ -737,8 +763,8 @@ mod resume {
                     .agreement_id("agreement_id")
                     .dataspace_context("dataspace_context")
                     .participant_id("participant_id")
-                    .callback_address("callback_address")
-                    .transfer_type("transfer_type")
+                    .control_plane_id("control_plane_id")
+                    .profile("transfer_type")
                     .kind(DataFlowType::Provider)
                     .build(),
             ))

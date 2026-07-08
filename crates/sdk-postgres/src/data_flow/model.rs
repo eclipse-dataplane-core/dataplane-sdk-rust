@@ -25,14 +25,14 @@ pub struct DataFlow {
     pub participant_context_id: String,
     pub counter_party_id: String,
     pub state: DataFlowState,
-    pub transfer_type: String,
+    pub profile: String,
     #[sqlx(rename = "type")]
     pub kind: DataFlowType,
     pub agreement_id: String,
     pub dataset_id: String,
     pub dataspace_context: String,
     pub participant_id: String,
-    pub callback_address: String,
+    pub control_plane_id: String,
     pub suspension_reason: Option<String>,
     pub termination_reason: Option<String>,
     #[builder(default)]
@@ -81,8 +81,8 @@ impl From<DataFlow> for dataplane_sdk::core::model::data_flow::DataFlow {
             .dataset_id(flow.dataset_id)
             .dataspace_context(flow.dataspace_context)
             .participant_id(flow.participant_id)
-            .callback_address(flow.callback_address)
-            .transfer_type(flow.transfer_type)
+            .control_plane_id(flow.control_plane_id)
+            .profile(flow.profile)
             .kind(flow.kind.into())
             .created_at(flow.created_at)
             .updated_at(flow.updated_at)
