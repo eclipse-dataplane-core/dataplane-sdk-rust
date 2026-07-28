@@ -4,6 +4,7 @@ license.workspace = true
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
+publish = false
 
 [dependencies]
 dataplane-sdk= { path="../../crates/sdk" }

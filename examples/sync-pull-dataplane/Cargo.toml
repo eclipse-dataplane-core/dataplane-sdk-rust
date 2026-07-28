@@ -3,6 +3,7 @@ name = "sync-pull-dataplane"
 version = "0.1.0"
 license.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 example-common= { path="../example-common" }

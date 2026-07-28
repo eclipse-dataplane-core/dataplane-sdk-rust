@@ -4,6 +4,7 @@ license.workspace = true
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
+publish = false
 
 [dev-dependencies]
 dataplane-sdk = {  path = "../sdk", version = "0.1.0" }

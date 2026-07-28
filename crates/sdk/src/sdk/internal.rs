@@ -287,7 +287,7 @@ where
 
     /// Notifies the control plane that the data flow has been prepared, by
     /// POSTing to the URL of the flow's referenced control plane (resolved from
-    /// `control_plane_id`). See the Data Plane Signalling "Control Plane
+    /// `control_plane_id`). See the Data Plane Signaling "Control Plane
     /// Endpoint" section.
     pub async fn notify_prepared(
         &self,

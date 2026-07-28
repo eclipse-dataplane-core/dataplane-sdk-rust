@@ -1,8 +1,11 @@
 [package]
 name = "dataplane-sdk-postgres"
-version = "0.1.0"
+version.workspace = true
 license.workspace = true
 edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "PostgreSQL backend for the dataplane-sdk data plane state store"
 
 [dependencies]
 dataplane-sdk = {  path = "../sdk", version = "0.1.0" }

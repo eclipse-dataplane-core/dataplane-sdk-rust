@@ -1,0 +1,14 @@
+[workspace]
+pr_labels = ["release"]
+
+[[package]]
+name = "dataplane-sdk-tck-tests"
+release = false
+
+[[package]]
+name = "example-common"
+release = false
+
+[[package]]
+name = "sync-pull-dataplane"
+release = false

@@ -8,6 +8,7 @@ license = "Apache-2.0"
 edition = "2024"
 version = "0.1.0"
 authors = ["Enrico Risa <enrico.risa@gmail.com>"]
+repository = "https://github.com/eclipse-dataplane-core/dataplane-sdk-rust"
 
 
 [workspace.dependencies]

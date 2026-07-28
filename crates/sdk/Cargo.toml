@@ -4,7 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-
+repository.workspace = true
+description = "A Rust SDK for building data planes that interface with Dataspace Protocol Control Planes via the Data Plane Signaling API"
 
 [dependencies]
 serde.workspace=true
