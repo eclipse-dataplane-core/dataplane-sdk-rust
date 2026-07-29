@@ -8,7 +8,7 @@ repository.workspace = true
 description = "PostgreSQL backend for the dataplane-sdk data plane state store"
 
 [dependencies]
-dataplane-sdk = {  path = "../sdk", version = "0.1.0" }
+dataplane-sdk = {  path = "../sdk", version = "0.1.1" }
 async-trait.workspace=true
 sqlx = { workspace=true, features = ["postgres"]}
 bon.workspace=true
@@ -20,7 +20,7 @@ serde_json.workspace=true
 tokio.workspace=true
 testcontainers = { workspace = true }
 testcontainers-modules = { workspace = true, features = ["postgres"] }
-dataplane-sdk = {  path = "../sdk", version = "0.1.0", features = ["test"] }
+dataplane-sdk = {  path = "../sdk", version = "0.1.1", features = ["test"] }
 
 [lints]
 workspace = true
