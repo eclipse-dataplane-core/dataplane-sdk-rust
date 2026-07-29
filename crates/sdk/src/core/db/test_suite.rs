@@ -50,6 +50,11 @@ pub fn create_data_flow(id: &str) -> DataFlow {
                 .into_iter()
                 .collect(),
         )
+        .claims(
+            vec![("claim".to_string(), "value".into())]
+                .into_iter()
+                .collect(),
+        )
         .dataset_id("dataset_id")
         .dataspace_context("dataspace_context")
         .participant_id("participant_id")

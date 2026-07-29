@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS data_flows (
     suspension_reason TEXT,
     termination_reason TEXT,
     metadata JSONB NOT NULL DEFAULT '{}',
+    claims JSONB NOT NULL DEFAULT '{}',
     labels JSONB NOT NULL DEFAULT '[]',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

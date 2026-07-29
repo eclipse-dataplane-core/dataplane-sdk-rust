@@ -37,6 +37,8 @@ pub struct DataFlow {
     pub termination_reason: Option<String>,
     #[builder(default)]
     pub metadata: Json<HashMap<String, Value>>,
+    #[builder(default)]
+    pub claims: Json<HashMap<String, Value>>,
     #[builder(into)]
     pub data_address: Option<Json<DataAddress>>,
     #[builder(into)]
@@ -78,6 +80,7 @@ impl From<DataFlow> for dataplane_sdk::core::model::data_flow::DataFlow {
             .labels(flow.labels.0)
             .agreement_id(flow.agreement_id)
             .metadata(flow.metadata.0)
+            .claims(flow.claims.0)
             .dataset_id(flow.dataset_id)
             .dataspace_context(flow.dataspace_context)
             .participant_id(flow.participant_id)

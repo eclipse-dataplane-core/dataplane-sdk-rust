@@ -33,8 +33,8 @@ impl DataFlowRepo for PgDataFlowRepo {
     async fn create(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> DbResult<()> {
         let result = sqlx::query(
             r#"
-            INSERT INTO data_flows (id, participant_id, dataspace_context, participant_context_id, counter_party_id, dataset_id, agreement_id, state, profile, type, data_address, control_plane_id, labels, metadata, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            INSERT INTO data_flows (id, participant_id, dataspace_context, participant_context_id, counter_party_id, dataset_id, agreement_id, state, profile, type, data_address, control_plane_id, labels, metadata, claims, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             "#,
         )
         .bind(&flow.id)
@@ -51,6 +51,7 @@ impl DataFlowRepo for PgDataFlowRepo {
         .bind(&flow.control_plane_id)
         .bind(Json(flow.labels.clone()))
         .bind(Json(flow.metadata.clone()))
+        .bind(Json(flow.claims.clone()))
         .bind(flow.created_at)
         .bind(flow.updated_at)
         .execute(&mut *tx.0)

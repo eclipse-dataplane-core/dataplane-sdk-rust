@@ -41,6 +41,8 @@ pub struct DataFlow {
     pub labels: Vec<String>,
     #[builder(default)]
     pub metadata: HashMap<String, Value>,
+    #[builder(default)]
+    pub claims: HashMap<String, Value>,
     #[builder(into)]
     pub data_address: Option<DataAddress>,
     #[builder(default = Utc::now())]

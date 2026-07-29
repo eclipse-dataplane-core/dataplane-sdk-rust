@@ -37,6 +37,9 @@ pub struct DataFlowStartMessage {
     #[builder(default)]
     #[serde(default)]
     pub metadata: HashMap<String, Value>,
+    #[builder(default)]
+    #[serde(default)]
+    pub claims: HashMap<String, Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Builder)]
@@ -64,6 +67,9 @@ pub struct DataFlowPrepareMessage {
     #[builder(default)]
     #[serde(default)]
     pub metadata: HashMap<String, Value>,
+    #[builder(default)]
+    #[serde(default)]
+    pub claims: HashMap<String, Value>,
 }
 
 #[derive(Debug, Builder, Serialize, Deserialize, Clone)]
