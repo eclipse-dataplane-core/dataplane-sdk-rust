@@ -100,7 +100,7 @@ pub async fn setup_tck_container(
     reporter: TckTestReporter,
 ) -> testcontainers::ContainerAsync<GenericImage> {
     let path = Path::new("tests/dps.tck.properties");
-    GenericImage::new("eclipsedataspacetck/dps-tck-runtime", "1.2.0")
+    GenericImage::new("eclipsedataspacetck/dps-tck-runtime", "1.3.0")
         .with_exposed_port(8083.tcp())
         .with_wait_for(WaitFor::message_on_stdout("Test run complete"))
         .with_mapped_port(8083, ContainerPort::Tcp(8083))

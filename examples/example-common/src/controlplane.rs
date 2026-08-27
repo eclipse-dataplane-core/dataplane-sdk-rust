@@ -46,7 +46,7 @@ impl ControlPlaneSimulator {
 
         let msg = DataFlowStartMessage::builder()
             .dataset_id(req.dataset_id)
-            .process_id(req.process_id)
+            .data_flow_id(req.process_id)
             .agreement_id(req.agreement_id)
             .maybe_data_address(req.data_address)
             .participant_id("control-plane-simulator")
@@ -76,7 +76,7 @@ impl ControlPlaneSimulator {
 
         let msg = DataFlowStartMessage::builder()
             .dataset_id(req.dataset_id)
-            .process_id(req.process_id)
+            .data_flow_id(req.process_id)
             .agreement_id(req.agreement_id)
             .maybe_data_address(req.data_address)
             .participant_id("control-plane-simulator")
@@ -132,7 +132,7 @@ impl ControlPlaneSimulator {
 
         let msg = DataFlowStartMessage::builder()
             .dataset_id(req.dataset_id)
-            .process_id(req.process_id)
+            .data_flow_id(req.process_id)
             .agreement_id(req.agreement_id)
             .maybe_data_address(req.data_address)
             .participant_id("control-plane-simulator")
