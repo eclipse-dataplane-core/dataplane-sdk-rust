@@ -54,7 +54,7 @@ where
         req: DataFlowStartMessage,
     ) -> SdkResult<DataFlowStatusMessage> {
         let mut flow = DataFlow::builder()
-            .id(req.process_id)
+            .id(req.data_flow_id)
             .counter_party_id(req.counter_party_id)
             .maybe_data_address(req.data_address)
             .participant_context_id(participant_context_id)
@@ -103,7 +103,7 @@ where
         req: DataFlowPrepareMessage,
     ) -> SdkResult<DataFlowStatusMessage> {
         let mut flow = DataFlow::builder()
-            .id(req.process_id)
+            .id(req.data_flow_id)
             .counter_party_id(req.counter_party_id)
             .participant_context_id(participant_context_id)
             .state(DataFlowState::Initiating)

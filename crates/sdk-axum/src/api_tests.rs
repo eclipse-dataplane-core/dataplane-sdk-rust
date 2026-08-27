@@ -236,7 +236,7 @@ mod start {
         let msg = DataFlowStartMessage::builder()
             .dataset_id("dataset_id")
             .participant_id("counter_party_id")
-            .process_id("process_id")
+            .data_flow_id("process_id")
             .data_address(
                 DataAddress::builder()
                     .endpoint_type("type")
@@ -476,7 +476,7 @@ mod prepare {
         let msg = DataFlowPrepareMessage::builder()
             .dataset_id("dataset_id")
             .participant_id("counter_party_id")
-            .process_id("process_id")
+            .data_flow_id("process_id")
             .agreement_id("agreement_id")
             .profile("transfer_type")
             .dataspace_context("dataspace_context")

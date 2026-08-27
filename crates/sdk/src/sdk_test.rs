@@ -1081,7 +1081,7 @@ mod notify {
 
 fn start_message() -> DataFlowStartMessage {
     DataFlowStartMessage::builder()
-        .process_id("process-id")
+        .data_flow_id("process-id")
         .participant_id("counter-party")
         .dataset_id("dataset")
         .data_address(
@@ -1100,7 +1100,7 @@ fn start_message() -> DataFlowStartMessage {
 
 fn prepare_message() -> DataFlowPrepareMessage {
     DataFlowPrepareMessage::builder()
-        .process_id("process-id")
+        .data_flow_id("process-id")
         .participant_id("counter-party")
         .dataset_id("dataset")
         .agreement_id("agreement")
