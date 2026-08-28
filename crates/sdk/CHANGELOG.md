@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/eclipse-dataplane-core/dataplane-sdk-rust/compare/dataplane-sdk-v0.1.1...dataplane-sdk-v0.1.2) - 2026-08-28
+
+### Other
+
+- align with DPS rc4 spec ([#57](https://github.com/eclipse-dataplane-core/dataplane-sdk-rust/pull/57))
+
 ## [0.1.1](https://github.com/eclipse-dataplane-core/dataplane-sdk-rust/compare/dataplane-sdk-v0.1.0...dataplane-sdk-v0.1.1) - 2026-07-29
 
 ### Added

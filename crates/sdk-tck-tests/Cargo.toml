@@ -7,9 +7,9 @@ authors.workspace = true
 publish = false
 
 [dev-dependencies]
-dataplane-sdk = {  path = "../sdk", version = "0.1.1" }
-dataplane-sdk-postgres = {  path = "../sdk-postgres", version = "0.1.1" }
-dataplane-sdk-axum = {  path = "../sdk-axum", version = "0.1.1" }
+dataplane-sdk = {  path = "../sdk", version = "0.1.2" }
+dataplane-sdk-postgres = {  path = "../sdk-postgres", version = "0.1.2" }
+dataplane-sdk-axum = {  path = "../sdk-axum", version = "0.1.2" }
 sqlx = { workspace=true, features = ["postgres"]}
 tokio.workspace=true
 testcontainers = { workspace = true }
