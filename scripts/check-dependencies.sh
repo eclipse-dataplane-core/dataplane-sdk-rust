@@ -11,6 +11,7 @@ cd "$(git rev-parse --show-toplevel)"
 source scripts/dash-common.sh
 
 SUMMARY=DEPENDENCIES.txt
+BATCH_SIZE=50
 
 dash_ensure_jar
 
@@ -19,7 +20,7 @@ dash_ensure_jar
 tmp_summary=$(mktemp)
 trap 'rm -f "$tmp_summary"' EXIT
 status=0
-dash_dependency_ids | java -jar "$DASH_JAR" -timeout "$DASH_TIMEOUT" -summary "$tmp_summary" - || status=$?
+dash_dependency_ids | java -jar "$DASH_JAR" -batch "$BATCH_SIZE" -timeout "$DASH_TIMEOUT" -summary "$tmp_summary" - || status=$?
 
 if [ "$status" -eq 127 ]; then
   echo "::error::Eclipse Dash License Tool failed to run; $SUMMARY was left unchanged."

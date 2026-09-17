@@ -33,6 +33,7 @@ echo "Requesting IP Team reviews for project $ECLIPSE_PROJECT_ID ($ECLIPSE_PROJE
 dash_dependency_ids \
   | java -jar "$DASH_JAR" \
       -timeout "$DASH_TIMEOUT" \
+      -batch 50 \
       -review \
       -token "$GITLAB_API_TOKEN" \
       -project "$ECLIPSE_PROJECT_ID" \
