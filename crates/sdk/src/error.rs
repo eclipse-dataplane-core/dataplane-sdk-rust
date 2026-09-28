@@ -29,4 +29,6 @@ pub enum SdkError {
     Notification(#[from] reqwest::Error),
     #[error("Notification rejected with status {status}: {body}")]
     NotificationStatus { status: u16, body: String },
+    #[error("Invalid control plane callback URL: {0}")]
+    InvalidCallbackUrl(String),
 }

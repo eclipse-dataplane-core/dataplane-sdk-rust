@@ -21,15 +21,27 @@ use crate::core::db::tx::MockTransaction;
 pub trait DataFlowRepo: Send + Sync {
     type Transaction;
 
+    /// Creates a flow. Flow ids are unique per participant context, not globally: two participant
+    /// contexts may each own a flow with the same id.
     async fn create(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> DbResult<()>;
 
+    /// Fetches the flow `flow_id` owned by `participant_context_id`. A flow owned by another
+    /// participant context is reported as absent (`Ok(None)`), never returned.
     async fn fetch_by_id(
         &self,
         tx: &mut Self::Transaction,
+        participant_context_id: &str,
         flow_id: &str,
     ) -> DbResult<Option<DataFlow>>;
 
+    /// Updates the flow identified by (`flow.participant_context_id`, `flow.id`).
     async fn update(&self, tx: &mut Self::Transaction, flow: &DataFlow) -> DbResult<()>;
 
-    async fn delete(&self, tx: &mut Self::Transaction, flow_id: &str) -> DbResult<()>;
+    /// Deletes the flow `flow_id` owned by `participant_context_id`.
+    async fn delete(
+        &self,
+        tx: &mut Self::Transaction,
+        participant_context_id: &str,
+        flow_id: &str,
+    ) -> DbResult<()>;
 }

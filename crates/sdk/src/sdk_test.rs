@@ -423,7 +423,7 @@ mod terminate {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(Some(flow())))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(Some(flow())))));
 
         repo.expect_update()
             .returning(|_, _| Box::pin(future::ready(Ok(()))));
@@ -460,7 +460,7 @@ mod terminate {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(None))));
 
         handler
             .expect_can_handle()
@@ -505,7 +505,7 @@ mod suspend {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(Some(flow())))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(Some(flow())))));
 
         repo.expect_update()
             .returning(|_, _| Box::pin(future::ready(Ok(()))));
@@ -542,7 +542,7 @@ mod suspend {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(None))));
 
         handler
             .expect_can_handle()
@@ -594,7 +594,7 @@ mod started {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(Some(flow())))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(Some(flow())))));
 
         repo.expect_update()
             .returning(|_, _| Box::pin(future::ready(Ok(()))));
@@ -629,7 +629,7 @@ mod started {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(None))));
 
         handler.expect_on_started().times(0);
 
@@ -672,7 +672,7 @@ mod completed {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(Some(flow())))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(Some(flow())))));
 
         repo.expect_update()
             .returning(|_, _| Box::pin(future::ready(Ok(()))));
@@ -705,7 +705,7 @@ mod completed {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(None))));
 
         handler.expect_on_completed().times(0);
 
@@ -756,7 +756,7 @@ mod resume {
             Box::pin(future::ready(Ok(tx)))
         });
 
-        repo.expect_fetch_by_id().returning(|_, _| {
+        repo.expect_fetch_by_id().returning(|_, _, _| {
             let mut f = flow();
             f.state = DataFlowState::Suspended;
             Box::pin(future::ready(Ok(Some(f))))
@@ -799,7 +799,7 @@ mod resume {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(None))));
 
         handler.expect_on_resume().times(0);
 
@@ -840,7 +840,7 @@ mod status {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(Some(flow())))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(Some(flow())))));
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
@@ -867,7 +867,7 @@ mod status {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(None))));
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
@@ -932,7 +932,7 @@ mod notify {
 
         let control_plane_id = f.control_plane_id.clone();
         repo.expect_fetch_by_id()
-            .returning(move |_, _| Box::pin(future::ready(Ok(Some(f.clone())))));
+            .returning(move |_, _, _| Box::pin(future::ready(Ok(Some(f.clone())))));
 
         repo.expect_update()
             .returning(|_, _| Box::pin(future::ready(Ok(()))));
@@ -1061,7 +1061,7 @@ mod notify {
         });
 
         repo.expect_fetch_by_id()
-            .returning(|_, _| Box::pin(future::ready(Ok(None))));
+            .returning(|_, _, _| Box::pin(future::ready(Ok(None))));
 
         let sdk = DataPlaneSdk::builder(ctx)
             .with_repo(repo)
@@ -1076,6 +1076,98 @@ mod notify {
             response,
             Err(SdkError::Repo(DbError::NotFound(_)))
         ));
+    }
+}
+
+/// Operations on an existing flow are scoped to the calling participant context: a caller that
+/// knows another participant context's flow id must get `NotFound`, and the handler must not run.
+mod isolation {
+    use std::future;
+
+    use crate::{
+        core::{
+            db::{control_plane::MockControlPlaneRepo, tx::MockTransaction},
+            error::DbError,
+            model::messages::{DataFlowResumeMessage, DataFlowStartedNotificationMessage},
+        },
+        error::SdkError,
+        sdk::DataPlaneSdk,
+        sdk_test::{context, flow},
+    };
+
+    const OWNER: &str = "participant-1";
+    const INTRUDER: &str = "participant-2";
+
+    /// The repo only returns the flow for its owning participant context. The handler has no
+    /// expectations, so any handler callback made for the intruder fails the test.
+    fn sdk() -> DataPlaneSdk<crate::core::db::tx::MockTransactionalContext> {
+        let (mut ctx, mut repo, handler) = context();
+
+        ctx.expect_begin().returning(|| {
+            let mut tx = MockTransaction::new();
+            tx.expect_commit()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            tx.expect_rollback()
+                .returning(|| Box::pin(future::ready(Ok(()))));
+            Box::pin(future::ready(Ok(tx)))
+        });
+
+        repo.expect_fetch_by_id().returning(|_, pc, _| {
+            let found = (pc == OWNER).then(flow);
+            Box::pin(future::ready(Ok(found)))
+        });
+
+        DataPlaneSdk::builder(ctx)
+            .with_repo(repo)
+            .with_control_plane_repo(MockControlPlaneRepo::new())
+            .with_handler(handler)
+            .build()
+            .unwrap()
+    }
+
+    fn assert_not_found<T: std::fmt::Debug>(result: Result<T, SdkError>) {
+        assert!(
+            matches!(result, Err(SdkError::Repo(DbError::NotFound(..)))),
+            "expected NotFound, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn status_of_other_context_flow_is_not_found() {
+        assert_not_found(sdk().status(INTRUDER, "flow-id").await);
+    }
+
+    #[tokio::test]
+    async fn terminate_of_other_context_flow_is_not_found() {
+        assert_not_found(sdk().terminate(INTRUDER, "flow-id", None).await);
+    }
+
+    #[tokio::test]
+    async fn suspend_of_other_context_flow_is_not_found() {
+        assert_not_found(sdk().suspend(INTRUDER, "flow-id", None).await);
+    }
+
+    #[tokio::test]
+    async fn completed_of_other_context_flow_is_not_found() {
+        assert_not_found(sdk().completed(INTRUDER, "flow-id").await);
+    }
+
+    #[tokio::test]
+    async fn started_of_other_context_flow_is_not_found() {
+        let msg = DataFlowStartedNotificationMessage::builder().build();
+        assert_not_found(sdk().started(INTRUDER, "flow-id", msg).await);
+    }
+
+    #[tokio::test]
+    async fn resume_of_other_context_flow_is_not_found() {
+        let msg = DataFlowResumeMessage::builder().build();
+        assert_not_found(sdk().resume(INTRUDER, "flow-id", msg).await);
+    }
+
+    #[tokio::test]
+    async fn status_of_own_flow_is_found() {
+        assert!(sdk().status(OWNER, "flow-id").await.is_ok());
     }
 }
 

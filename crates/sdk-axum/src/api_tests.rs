@@ -68,10 +68,11 @@ mock! {
         async fn fetch_by_id(
             &self,
             tx: &mut MockTx,
+            participant_context_id: &str,
             flow_id: &str,
         ) -> DbResult<Option<DataFlow>>;
 
-        async fn delete(&self, tx: &mut MockTx, flow_id: &str) -> DbResult<()>;
+        async fn delete(&self, tx: &mut MockTx, participant_context_id: &str, flow_id: &str) -> DbResult<()>;
 
     }
 }
@@ -300,7 +301,7 @@ mod terminate {
             Ok(tx)
         });
 
-        repo.expect_fetch_by_id().returning(|_, _| {
+        repo.expect_fetch_by_id().returning(|_, _, _| {
             Ok(Some(
                 DataFlow::builder()
                     .id("example-flow-id")
@@ -381,7 +382,7 @@ mod suspend {
             Ok(tx)
         });
 
-        repo.expect_fetch_by_id().returning(|_, _| {
+        repo.expect_fetch_by_id().returning(|_, _, _| {
             Ok(Some(
                 DataFlow::builder()
                     .id("example-flow-id")
@@ -538,7 +539,7 @@ mod started {
             Ok(tx)
         });
 
-        repo.expect_fetch_by_id().returning(|_, _| {
+        repo.expect_fetch_by_id().returning(|_, _, _| {
             Ok(Some(
                 DataFlow::builder()
                     .id("example-flow-id")
@@ -608,7 +609,7 @@ mod completed {
             Ok(tx)
         });
 
-        repo.expect_fetch_by_id().returning(|_, _| {
+        repo.expect_fetch_by_id().returning(|_, _, _| {
             Ok(Some(
                 DataFlow::builder()
                     .id("example-flow-id")
@@ -676,7 +677,7 @@ mod flow_status {
             Ok(tx)
         });
 
-        repo.expect_fetch_by_id().returning(|_, _| {
+        repo.expect_fetch_by_id().returning(|_, _, _| {
             Ok(Some(
                 DataFlow::builder()
                     .id("example-flow-id")
@@ -752,7 +753,7 @@ mod resume {
             Ok(tx)
         });
 
-        repo.expect_fetch_by_id().returning(|_, _| {
+        repo.expect_fetch_by_id().returning(|_, _, _| {
             Ok(Some(
                 DataFlow::builder()
                     .id("example-flow-id")

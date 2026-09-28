@@ -69,27 +69,35 @@ impl DataFlowRepo for PgDataFlowRepo {
     async fn fetch_by_id(
         &self,
         tx: &mut Self::Transaction,
+        participant_context_id: &str,
         flow_id: &str,
     ) -> DbResult<Option<DataFlow>> {
         Ok(sqlx::query_as::<_, DbDataFlow>(
             r#"
-            SELECT * FROM data_flows where id = $1
+            SELECT * FROM data_flows WHERE id = $1 AND participant_context_id = $2
             "#,
         )
         .bind(flow_id)
+        .bind(participant_context_id)
         .fetch_optional(&mut *tx.0)
         .await
         .map_err(|err| DbError::Generic(Box::new(err)))?
         .map(|flow| flow.into()))
     }
 
-    async fn delete(&self, tx: &mut Self::Transaction, flow_id: &str) -> DbResult<()> {
+    async fn delete(
+        &self,
+        tx: &mut Self::Transaction,
+        participant_context_id: &str,
+        flow_id: &str,
+    ) -> DbResult<()> {
         let rows = sqlx::query(
             r#"
-            DELETE FROM data_flows where id = $1
+            DELETE FROM data_flows WHERE id = $1 AND participant_context_id = $2
             "#,
         )
         .bind(flow_id)
+        .bind(participant_context_id)
         .execute(&mut *tx.0)
         .await
         .map_err(|err| DbError::Generic(Box::new(err)))?
@@ -109,11 +117,12 @@ impl DataFlowRepo for PgDataFlowRepo {
         let rows = sqlx::query(
             r#"
             UPDATE data_flows SET state=$1
-            WHERE id = $2
+            WHERE id = $2 AND participant_context_id = $3
             "#,
         )
         .bind(DataFlowState::from(flow.state.clone()))
         .bind(&flow.id)
+        .bind(&flow.participant_context_id)
         .execute(&mut *tx.0)
         .await
         .map_err(|err| DbError::Generic(Box::new(err)))?

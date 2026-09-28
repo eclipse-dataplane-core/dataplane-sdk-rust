@@ -146,14 +146,14 @@ where
 
     pub async fn terminate(
         &self,
-        _ctx: &str,
+        ctx: &str,
         flow_id: &str,
         reason: Option<String>,
     ) -> SdkResult<()> {
         let mut tx = self.ctx.begin().await?;
         let mut flow = self
             .repo
-            .fetch_by_id(&mut tx, flow_id)
+            .fetch_by_id(&mut tx, ctx, flow_id)
             .await?
             .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
 
@@ -168,14 +168,14 @@ where
 
     pub async fn started(
         &self,
-        _ctx: &str,
+        ctx: &str,
         flow_id: &str,
         msg: DataFlowStartedNotificationMessage,
     ) -> SdkResult<()> {
         let mut tx = self.ctx.begin().await?;
         let mut flow = self
             .repo
-            .fetch_by_id(&mut tx, flow_id)
+            .fetch_by_id(&mut tx, ctx, flow_id)
             .await?
             .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
 
@@ -190,11 +190,11 @@ where
         Ok(())
     }
 
-    pub async fn completed(&self, _ctx: &str, flow_id: &str) -> SdkResult<()> {
+    pub async fn completed(&self, ctx: &str, flow_id: &str) -> SdkResult<()> {
         let mut tx = self.ctx.begin().await?;
         let mut flow = self
             .repo
-            .fetch_by_id(&mut tx, flow_id)
+            .fetch_by_id(&mut tx, ctx, flow_id)
             .await?
             .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
 
@@ -208,17 +208,12 @@ where
         Ok(())
     }
 
-    pub async fn suspend(
-        &self,
-        _ctx: &str,
-        flow_id: &str,
-        reason: Option<String>,
-    ) -> SdkResult<()> {
+    pub async fn suspend(&self, ctx: &str, flow_id: &str, reason: Option<String>) -> SdkResult<()> {
         let mut tx = self.ctx.begin().await?;
 
         let mut flow = self
             .repo
-            .fetch_by_id(&mut tx, flow_id)
+            .fetch_by_id(&mut tx, ctx, flow_id)
             .await?
             .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
 
@@ -234,7 +229,7 @@ where
 
     pub async fn resume(
         &self,
-        _ctx: &str,
+        ctx: &str,
         flow_id: &str,
         msg: DataFlowResumeMessage,
     ) -> SdkResult<DataFlowStatusMessage> {
@@ -242,7 +237,7 @@ where
 
         let mut flow = self
             .repo
-            .fetch_by_id(&mut tx, flow_id)
+            .fetch_by_id(&mut tx, ctx, flow_id)
             .await?
             .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
 
@@ -268,14 +263,14 @@ where
     }
     pub async fn status(
         &self,
-        _ctx: &str,
+        ctx: &str,
         flow_id: &str,
     ) -> SdkResult<DataFlowStatusResponseMessage> {
         let mut tx = self.ctx.begin().await?;
 
         let flow = self
             .repo
-            .fetch_by_id(&mut tx, flow_id)
+            .fetch_by_id(&mut tx, ctx, flow_id)
             .await?
             .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
 
@@ -356,7 +351,7 @@ where
 
     async fn send_callback<CB>(
         &self,
-        _ctx: &str,
+        ctx: &str,
         flow_id: &str,
         operation: &str,
         data_address: Option<DataAddress>,
@@ -369,7 +364,7 @@ where
         let mut tx = self.ctx.begin().await?;
 
         let mut flow = self
-            .fetch_by_id(&mut tx, flow_id)
+            .fetch_by_id(&mut tx, ctx, flow_id)
             .await?
             .ok_or_else(|| DbError::NotFound(flow_id.to_string()))?;
 
@@ -388,14 +383,9 @@ where
             .maybe_error(error)
             .build();
 
-        let url = format!(
-            "{}/transfers/{}/dataflow/{}",
-            control_plane.url.trim_end_matches('/'),
-            flow.id,
-            operation
-        );
+        let url = callback_url(&control_plane.url, &flow.id, operation)?;
 
-        let resp = self.client.post(&url).json(&msg).send().await?;
+        let resp = self.client.post(url).json(&msg).send().await?;
         if !resp.status().is_success() {
             let status = resp.status().as_u16();
             let body = resp.text().await.unwrap_or_default();
@@ -408,15 +398,59 @@ where
         Ok(())
     }
 
+    /// Fetches the flow `flow_id` owned by participant context `ctx`; a flow owned by another
+    /// participant context is reported as absent.
     pub async fn fetch_by_id(
         &self,
         tx: &mut C::Transaction,
+        ctx: &str,
         flow_id: &str,
     ) -> SdkResult<Option<DataFlow>> {
-        self.repo.fetch_by_id(tx, flow_id).await.map(Ok)?
+        self.repo.fetch_by_id(tx, ctx, flow_id).await.map(Ok)?
     }
 
     pub fn ctx(&self) -> &C {
         &self.ctx
+    }
+}
+
+/// Builds `{base}/transfers/{flow_id}/dataflow/{operation}`, percent-encoding `flow_id` as a single
+/// path segment. The flow id is supplied by the caller of `start`/`prepare`, so it must not be able
+/// to add path segments, a query or a fragment to the control plane URL.
+fn callback_url(base: &str, flow_id: &str, operation: &str) -> SdkResult<reqwest::Url> {
+    let mut url =
+        reqwest::Url::parse(base).map_err(|e| SdkError::InvalidCallbackUrl(e.to_string()))?;
+    url.path_segments_mut()
+        .map_err(|_| SdkError::InvalidCallbackUrl(format!("{} cannot be a base URL", base)))?
+        .pop_if_empty()
+        .extend(["transfers", flow_id, "dataflow", operation]);
+    Ok(url)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::callback_url;
+
+    #[test]
+    fn callback_url_appends_segments() {
+        let url = callback_url("http://cp.example/api/", "flow-1", "started").unwrap();
+        assert_eq!(
+            url.as_str(),
+            "http://cp.example/api/transfers/flow-1/dataflow/started"
+        );
+    }
+
+    #[test]
+    fn callback_url_encodes_flow_id_as_one_segment() {
+        let url = callback_url("http://cp.example/api", "../../admin?x=1#f", "started").unwrap();
+        assert_eq!(
+            url.as_str(),
+            "http://cp.example/api/transfers/..%2F..%2Fadmin%3Fx=1%23f/dataflow/started"
+        );
+    }
+
+    #[test]
+    fn callback_url_rejects_invalid_base() {
+        assert!(callback_url("not a url", "flow-1", "started").is_err());
     }
 }
