@@ -30,6 +30,12 @@ pub trait Tester<T, Tx: TransactionalContext> {
     fn begin(&self) -> impl Future<Output = Tx::Transaction>;
 }
 
+/// Participant context that owns the flows built by [`create_data_flow`].
+pub const PARTICIPANT_CONTEXT_ID: &str = "participant_id";
+
+/// A second participant context, used to check isolation between contexts.
+pub const OTHER_PARTICIPANT_CONTEXT_ID: &str = "other_participant_context_id";
+
 pub fn create_data_flow(id: &str) -> DataFlow {
     DataFlow::builder()
         .id(id.to_string())
@@ -40,7 +46,7 @@ pub fn create_data_flow(id: &str) -> DataFlow {
                 .endpoint("endpoint")
                 .build(),
         )
-        .participant_context_id("participant_id")
+        .participant_context_id(PARTICIPANT_CONTEXT_ID)
         .counter_party_id("counter_party_id")
         .state(DataFlowState::Started)
         .labels(vec!["label1".to_string(), "label2".to_string()])
@@ -78,7 +84,11 @@ where
 
     store.create(&mut tx, &transfer).await.unwrap();
 
-    let saved = store.fetch_by_id(&mut tx, &id).await.unwrap().unwrap();
+    let saved = store
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &id)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(saved, transfer);
 }
 
@@ -110,13 +120,20 @@ where
 
     store.create(&mut tx, &transfer).await.unwrap();
 
-    let saved = store.fetch_by_id(&mut tx, &id).await.unwrap().unwrap();
+    let saved = store
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &id)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(saved, transfer);
 
     tx.rollback().await.expect("Failed to rollback transaction");
 
     let mut tx = tester.begin().await;
-    let result = store.fetch_by_id(&mut tx, &id).await.unwrap();
+    let result = store
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &id)
+        .await
+        .unwrap();
 
     assert!(result.is_none());
 }
@@ -134,12 +151,21 @@ where
     store.create(&mut tx, &transfer).await.unwrap();
     store.create(&mut tx, &transfer_2).await.unwrap();
 
-    store.delete(&mut tx, &transfer_2.id).await.unwrap();
+    store
+        .delete(&mut tx, PARTICIPANT_CONTEXT_ID, &transfer_2.id)
+        .await
+        .unwrap();
 
-    let result = store.fetch_by_id(&mut tx, &transfer_2.id).await.unwrap();
+    let result = store
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &transfer_2.id)
+        .await
+        .unwrap();
     assert!(result.is_none());
 
-    let result = store.fetch_by_id(&mut tx, &transfer.id).await.unwrap();
+    let result = store
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &transfer.id)
+        .await
+        .unwrap();
     assert!(result.is_some());
 }
 
@@ -152,7 +178,7 @@ where
 
     let id = Uuid::new_v4().to_string();
 
-    let result = store.delete(&mut tx, &id).await;
+    let result = store.delete(&mut tx, PARTICIPANT_CONTEXT_ID, &id).await;
 
     assert!(matches!(result, Err(DbError::NotFound(..))));
 }
@@ -174,7 +200,7 @@ where
     store.update(&mut tx, &updated).await.unwrap();
 
     let updated = store
-        .fetch_by_id(&mut tx, &transfer.id)
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &transfer.id)
         .await
         .unwrap()
         .unwrap();
@@ -182,7 +208,7 @@ where
     assert_eq!(updated.state, DataFlowState::Suspended);
 
     let result = store
-        .fetch_by_id(&mut tx, &transfer.id)
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &transfer.id)
         .await
         .unwrap()
         .unwrap();
@@ -201,6 +227,73 @@ where
     let result = store.update(&mut tx, &transfer).await;
 
     assert!(matches!(result, Err(DbError::NotFound(..))));
+}
+
+/// A flow owned by one participant context is invisible to, and cannot be updated or deleted by,
+/// another participant context that knows its id.
+pub async fn other_context_isolated<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+where
+    T: DataFlowRepo<Transaction = Tx::Transaction>,
+{
+    let store = tester.store();
+    let mut tx = tester.begin().await;
+
+    let transfer = create_data_flow(&Uuid::new_v4().to_string());
+    store.create(&mut tx, &transfer).await.unwrap();
+
+    let result = store
+        .fetch_by_id(&mut tx, OTHER_PARTICIPANT_CONTEXT_ID, &transfer.id)
+        .await
+        .unwrap();
+    assert!(result.is_none());
+
+    let mut hijacked = transfer.clone();
+    hijacked.participant_context_id = OTHER_PARTICIPANT_CONTEXT_ID.to_string();
+    hijacked.state = DataFlowState::Terminated;
+    let result = store.update(&mut tx, &hijacked).await;
+    assert!(matches!(result, Err(DbError::NotFound(..))));
+
+    let result = store
+        .delete(&mut tx, OTHER_PARTICIPANT_CONTEXT_ID, &transfer.id)
+        .await;
+    assert!(matches!(result, Err(DbError::NotFound(..))));
+
+    let saved = store
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &transfer.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved, transfer);
+}
+
+/// Two participant contexts can each own a flow with the same id without colliding.
+pub async fn same_id_in_other_context<T, Tx: TransactionalContext>(tester: impl Tester<T, Tx>)
+where
+    T: DataFlowRepo<Transaction = Tx::Transaction>,
+{
+    let store = tester.store();
+    let mut tx = tester.begin().await;
+
+    let id = Uuid::new_v4().to_string();
+    let transfer = create_data_flow(&id);
+    let mut other = create_data_flow(&id);
+    other.participant_context_id = OTHER_PARTICIPANT_CONTEXT_ID.to_string();
+    other.state = DataFlowState::Suspended;
+
+    store.create(&mut tx, &transfer).await.unwrap();
+    store.create(&mut tx, &other).await.unwrap();
+
+    store
+        .delete(&mut tx, OTHER_PARTICIPANT_CONTEXT_ID, &id)
+        .await
+        .unwrap();
+
+    let saved = store
+        .fetch_by_id(&mut tx, PARTICIPANT_CONTEXT_ID, &id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(saved, transfer);
 }
 
 #[macro_export]
@@ -226,6 +319,14 @@ macro_rules! generate_data_flow_store_tests {
         test!(
             data_flow_update_not_found,
             $crate::core::db::test_suite::update_not_found
+        );
+        test!(
+            data_flow_other_context_isolated,
+            $crate::core::db::test_suite::other_context_isolated
+        );
+        test!(
+            data_flow_same_id_in_other_context,
+            $crate::core::db::test_suite::same_id_in_other_context
         );
     };
 }
