@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/eclipse-dataplane-core/dataplane-sdk-rust/compare/dataplane-sdk-axum-v0.1.2...dataplane-sdk-axum-v0.1.3) - 2026-09-29
+
+### Added
+
+- hardening sdk on participant_context ([#69](https://github.com/eclipse-dataplane-core/dataplane-sdk-rust/pull/69))
+
 ## [0.1.2](https://github.com/eclipse-dataplane-core/dataplane-sdk-rust/compare/dataplane-sdk-axum-v0.1.1...dataplane-sdk-axum-v0.1.2) - 2026-08-28
 
 ### Other
