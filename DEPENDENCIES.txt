@@ -14,13 +14,13 @@ crate/cratesio/-/base64/0.22.1, Apache-2.0 AND MIT AND Apache-2.0 AND MIT, appro
 crate/cratesio/-/base64/0.23.1, MIT OR Apache-2.0, approved, clearlydefined
 crate/cratesio/-/bitflags/2.13.2, Apache-2.0 AND MIT AND Apache-2.0 AND MIT, approved, #29107
 crate/cratesio/-/block-buffer/0.10.4, MIT OR Apache-2.0, approved, clearlydefined
-crate/cratesio/-/bon-macros/3.10.1, Apache-2.0 AND MIT, approved, #31146
-crate/cratesio/-/bon/3.10.1, Apache-2.0 AND MIT, approved, #31158
+crate/cratesio/-/bon-macros/3.10.2, Apache-2.0 AND MIT, approved, #31146
+crate/cratesio/-/bon/3.10.2, Apache-2.0 AND MIT, approved, #31158
 crate/cratesio/-/byteorder/1.5.0, Unlicense OR MIT, approved, clearlydefined
 crate/cratesio/-/bytes/1.12.1, MIT, approved, #29659
 crate/cratesio/-/cfg-if/1.0.5, Apache-2.0 AND MIT, approved, #31212
 crate/cratesio/-/chrono/0.4.45, Apache-2.0 AND MIT, approved, #25679
-crate/cratesio/-/config/0.15.26, Apache-2.0 AND MIT, approved, #31940
+crate/cratesio/-/config/0.15.27, Apache-2.0 AND MIT, approved, #31940
 crate/cratesio/-/const-random-macro/0.1.16, MIT OR Apache-2.0, approved, clearlydefined
 crate/cratesio/-/const-random/0.1.18, MIT OR Apache-2.0, approved, clearlydefined
 crate/cratesio/-/convert_case/0.6.0, MIT, approved, clearlydefined
@@ -179,7 +179,7 @@ crate/cratesio/-/tokio-macros/2.7.2, MIT, approved, #27192
 crate/cratesio/-/tokio-rustls/0.26.6, Apache-2.0 AND MIT, approved, #31188
 crate/cratesio/-/tokio-stream/0.1.19, MIT, approved, #30519
 crate/cratesio/-/tokio-util/0.7.19, MIT, approved, #11389
-crate/cratesio/-/tokio/1.53.1, MIT, approved, #29874
+crate/cratesio/-/tokio/1.53.2, MIT, approved, #29874
 crate/cratesio/-/toml/1.1.6+spec-1.1.0, Apache-2.0 AND MIT, approved, #31229
 crate/cratesio/-/toml_datetime/1.1.1+spec-1.1.0, Apache-2.0 AND MIT AND Apache-2.0 AND MIT, approved, #27043
 crate/cratesio/-/toml_parser/1.1.3+spec-1.1.0, Apache-2.0 AND MIT AND Apache-2.0 AND MIT, approved, #27044
@@ -205,7 +205,7 @@ crate/cratesio/-/unicode-segmentation/1.13.3, MIT OR Apache-2.0, approved, clear
 crate/cratesio/-/untrusted/0.9.0, ISC AND (ISC AND MIT), approved, #7111
 crate/cratesio/-/url/2.5.8, Apache-2.0 AND MIT AND Apache-2.0 AND MIT, approved, #17429
 crate/cratesio/-/utf8_iter/1.0.4, Apache-2.0 AND MIT AND Apache-2.0 AND MIT, approved, #15426
-crate/cratesio/-/uuid/1.26.1, Apache-2.0 AND MIT, approved, #31110
+crate/cratesio/-/uuid/1.27.0, Apache-2.0 AND MIT, approved, #32258
 crate/cratesio/-/want/0.3.1, MIT, approved, clearlydefined
 crate/cratesio/-/webpki-roots/0.26.11, CDLA-Permissive-2.0, approved, #22432
 crate/cratesio/-/webpki-roots/1.0.9, LicenseRef-CDLA-Permissive-2.0, approved, #25535
